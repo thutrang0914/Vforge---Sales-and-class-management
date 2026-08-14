@@ -25,14 +25,29 @@ const today = () => new Date().toISOString().split("T")[0];
 const thisMonth = () => today().slice(0, 7);
 
 // --- COURSE STRUCTURE ---
-const COURSES = [
-  { id: "scratch", name: "Scratch & Block Coding", ageRange: "8-11", level: "Starter", duration: "3 tháng", fee: 1990000, color: V.amber },
-  { id: "python_basic", name: "Python Fundamentals", ageRange: "12-14", level: "Beginner", duration: "4 tháng", fee: 2490000, color: V.mint },
-  { id: "python_adv", name: "Python Advanced + AI", ageRange: "14-16", level: "Intermediate", duration: "4 tháng", fee: 2990000, color: V.accent },
-  { id: "cpp", name: "C++ & Competitive Prog", ageRange: "14-18", level: "Advanced", duration: "6 tháng", fee: 3490000, color: V.vred },
-  { id: "robotics", name: "Robotics & IoT", ageRange: "12-16", level: "All Levels", duration: "4 tháng", fee: 2990000, color: V.cyan },
-  { id: "webdev", name: "Web Development", ageRange: "15-18+", level: "Intermediate", duration: "4 tháng", fee: 2990000, color: V.accent },
+const COURSE_LEVELS = [
+  { id: "start", name: "Code Start", color: V.amber, icon: "🌱" },
+  { id: "up", name: "Code Up", color: V.accent, icon: "🚀" },
+  { id: "pro", name: "Code Pro", color: V.purple, icon: "⚡" },
+  { id: "proplus", name: "Code Pro+", color: V.vred, icon: "🏆" },
 ];
+
+const COURSES = [
+  { id: "start_1", name: "Code Start 1", level: "start", ageRange: "8-10", duration: "3 tháng", fee: 1800000 },
+  { id: "start_2", name: "Code Start 2", level: "start", ageRange: "10-12", duration: "3 tháng", fee: 1800000 },
+  { id: "up_1", name: "Code Up 1", level: "up", ageRange: "11-13", duration: "4 tháng", fee: 2400000 },
+  { id: "up_2", name: "Code Up 2", level: "up", ageRange: "12-14", duration: "4 tháng", fee: 2400000 },
+  { id: "up_3", name: "Code Up 3", level: "up", ageRange: "13-15", duration: "4 tháng", fee: 2400000 },
+  { id: "up_4", name: "Code Up 4", level: "up", ageRange: "14-16", duration: "4 tháng", fee: 2400000 },
+  { id: "pro_1", name: "Code Pro 1", level: "pro", ageRange: "14-16", duration: "5 tháng", fee: 3200000 },
+  { id: "pro_2", name: "Code Pro 2", level: "pro", ageRange: "15-17", duration: "5 tháng", fee: 3200000 },
+  { id: "pro_3", name: "Code Pro 3", level: "pro", ageRange: "16-18", duration: "5 tháng", fee: 3200000 },
+  { id: "proplus_1", name: "Code Pro+ 1", level: "proplus", ageRange: "15-18", duration: "6 tháng", fee: 3800000 },
+  { id: "proplus_2", name: "Code Pro+ 2", level: "proplus", ageRange: "16-18+", duration: "6 tháng", fee: 3800000 },
+  { id: "proplus_3", name: "Code Pro+ 3", level: "proplus", ageRange: "16-18+", duration: "6 tháng", fee: 3800000 },
+];
+
+const getCourseColor = (c) => COURSE_LEVELS.find(l => l.id === c.level)?.color || V.accent;
 
 const LEAD_SOURCES = ["Facebook Ads", "Zalo", "Giới thiệu", "Website", "Event/Workshop", "Walk-in", "Khác"];
 const LEAD_STATUSES = [
@@ -55,43 +70,44 @@ const DAYS_OF_WEEK = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 // --- SAMPLE DATA ---
 const INITIAL_LEADS = [
-  { id: 1, parentName: "Chị Hương", parentPhone: "0901234567", studentName: "Minh Đức", studentAge: 13, course: "python_basic", source: "Facebook Ads", status: "new", notes: "Quan tâm khóa Python, hỏi lịch học T7", createdAt: "2026-08-10", lastContact: null },
-  { id: 2, parentName: "Anh Tuấn", parentPhone: "0912345678", studentName: "Bảo Ngọc", studentAge: 15, course: "cpp", source: "Giới thiệu", status: "contacted", notes: "Con đang thi HSG Tin, muốn luyện thêm C++", createdAt: "2026-08-08", lastContact: "2026-08-11" },
-  { id: 3, parentName: "Chị Mai", parentPhone: "0923456789", studentName: "Hải Đăng", studentAge: 10, course: "scratch", source: "Website", status: "trial", notes: "Đã book lịch học thử 17/8", createdAt: "2026-08-05", lastContact: "2026-08-12" },
-  { id: 4, parentName: "Anh Khoa", parentPhone: "0934567890", studentName: "Gia Hân", studentAge: 14, course: "robotics", source: "Event/Workshop", status: "negotiating", notes: "Rất thích workshop Robotics, hỏi giảm học phí cho 2 con", createdAt: "2026-08-03", lastContact: "2026-08-13" },
-  { id: 5, parentName: "Chị Thảo", parentPhone: "0945678901", studentName: "Quang Minh", studentAge: 16, course: "webdev", source: "Zalo", status: "enrolled", notes: "Đã đóng full 3 tháng", createdAt: "2026-07-28", lastContact: "2026-08-01" },
-  { id: 6, parentName: "Anh Dũng", parentPhone: "0956789012", studentName: "Thanh Tùng", studentAge: 12, course: "python_basic", source: "Walk-in", status: "enrolled", notes: "Walk-in, đăng ký luôn tại quầy", createdAt: "2026-08-01", lastContact: "2026-08-01" },
-  { id: 7, parentName: "Chị Lan", parentPhone: "0967890123", studentName: "Phương Anh", studentAge: 9, course: "scratch", source: "Facebook Ads", status: "lost", notes: "Quá xa nhà, không tiện đưa đón", createdAt: "2026-07-20", lastContact: "2026-07-25" },
-  { id: 8, parentName: "Anh Hải", parentPhone: "0978901234", studentName: "Đức Anh", studentAge: 15, course: "python_adv", source: "Giới thiệu", status: "contacted", notes: "Bạn Quang Minh giới thiệu, đang cân nhắc", createdAt: "2026-08-12", lastContact: "2026-08-13" },
+  { id: 1, parentName: "Chị Hương", parentPhone: "0901234567", studentName: "Minh Đức", studentAge: 13, course: "up_2", source: "Facebook Ads", status: "new", notes: "Quan tâm Code Up, hỏi lịch học T7", createdAt: "2026-08-10", lastContact: null },
+  { id: 2, parentName: "Anh Tuấn", parentPhone: "0912345678", studentName: "Bảo Ngọc", studentAge: 15, course: "pro_1", source: "Giới thiệu", status: "contacted", notes: "Con đang thi HSG Tin, muốn luyện nâng cao", createdAt: "2026-08-08", lastContact: "2026-08-11" },
+  { id: 3, parentName: "Chị Mai", parentPhone: "0923456789", studentName: "Hải Đăng", studentAge: 9, course: "start_1", source: "Website", status: "trial", notes: "Đã book lịch học thử 17/8", createdAt: "2026-08-05", lastContact: "2026-08-12" },
+  { id: 4, parentName: "Anh Khoa", parentPhone: "0934567890", studentName: "Gia Hân", studentAge: 14, course: "up_3", source: "Event/Workshop", status: "negotiating", notes: "Rất thích workshop, hỏi giảm học phí cho 2 con", createdAt: "2026-08-03", lastContact: "2026-08-13" },
+  { id: 5, parentName: "Chị Thảo", parentPhone: "0945678901", studentName: "Quang Minh", studentAge: 16, course: "proplus_1", source: "Zalo", status: "enrolled", notes: "Đã đóng full học phí", createdAt: "2026-07-28", lastContact: "2026-08-01" },
+  { id: 6, parentName: "Anh Dũng", parentPhone: "0956789012", studentName: "Thanh Tùng", studentAge: 12, course: "up_1", source: "Walk-in", status: "enrolled", notes: "Walk-in, đăng ký luôn tại quầy", createdAt: "2026-08-01", lastContact: "2026-08-01" },
+  { id: 7, parentName: "Chị Lan", parentPhone: "0967890123", studentName: "Phương Anh", studentAge: 9, course: "start_1", source: "Facebook Ads", status: "lost", notes: "Quá xa nhà, không tiện đưa đón", createdAt: "2026-07-20", lastContact: "2026-07-25" },
+  { id: 8, parentName: "Anh Hải", parentPhone: "0978901234", studentName: "Đức Anh", studentAge: 15, course: "pro_2", source: "Giới thiệu", status: "contacted", notes: "Bạn Quang Minh giới thiệu, đang cân nhắc", createdAt: "2026-08-12", lastContact: "2026-08-13" },
 ];
 
 const INITIAL_STUDENTS = [
-  { id: 1, name: "Quang Minh", age: 16, parentName: "Chị Thảo", parentPhone: "0945678901", course: "webdev", classId: "WEB-01", enrollDate: "2026-08-01", paymentStatus: "paid", amountPaid: 8970000, totalFee: 8970000, note: "Founding student" },
-  { id: 2, name: "Thanh Tùng", age: 12, parentName: "Anh Dũng", parentPhone: "0956789012", course: "python_basic", classId: "PY-01", enrollDate: "2026-08-01", paymentStatus: "paid", amountPaid: 2490000, totalFee: 2490000, note: "" },
-  { id: 3, name: "Minh Anh", age: 14, parentName: "Chị Nga", parentPhone: "0989012345", course: "python_basic", classId: "PY-01", enrollDate: "2026-07-25", paymentStatus: "partial", amountPaid: 1000000, totalFee: 2490000, note: "Đặt cọc 1tr, trả nốt khi khai giảng" },
-  { id: 4, name: "Hoàng Sơn", age: 15, parentName: "Anh Bình", parentPhone: "0990123456", course: "cpp", classId: "CPP-01", enrollDate: "2026-07-20", paymentStatus: "paid", amountPaid: 3490000, totalFee: 3490000, note: "HSG cấp quận 2025" },
-  { id: 5, name: "Khánh Linh", age: 10, parentName: "Chị Yến", parentPhone: "0912345000", course: "scratch", classId: "SCR-01", enrollDate: "2026-08-05", paymentStatus: "pending", amountPaid: 0, totalFee: 1990000, note: "Chờ thanh toán sau buổi học thử" },
+  { id: 1, name: "Quang Minh", age: 16, parentName: "Chị Thảo", parentPhone: "0945678901", course: "proplus_1", classId: "PP-01", enrollDate: "2026-08-01", paymentStatus: "paid", amountPaid: 3800000, totalFee: 3800000, note: "Founding student" },
+  { id: 2, name: "Thanh Tùng", age: 12, parentName: "Anh Dũng", parentPhone: "0956789012", course: "up_1", classId: "CU-01", enrollDate: "2026-08-01", paymentStatus: "paid", amountPaid: 2400000, totalFee: 2400000, note: "" },
+  { id: 3, name: "Minh Anh", age: 14, parentName: "Chị Nga", parentPhone: "0989012345", course: "up_3", classId: "CU-03", enrollDate: "2026-07-25", paymentStatus: "partial", amountPaid: 1000000, totalFee: 2400000, note: "Đặt cọc 1tr, trả nốt khi khai giảng" },
+  { id: 4, name: "Hoàng Sơn", age: 15, parentName: "Anh Bình", parentPhone: "0990123456", course: "pro_1", classId: "CP-01", enrollDate: "2026-07-20", paymentStatus: "paid", amountPaid: 3200000, totalFee: 3200000, note: "HSG cấp quận 2025" },
+  { id: 5, name: "Khánh Linh", age: 9, parentName: "Chị Yến", parentPhone: "0912345000", course: "start_1", classId: "CS-01", enrollDate: "2026-08-05", paymentStatus: "pending", amountPaid: 0, totalFee: 1800000, note: "Chờ thanh toán sau buổi học thử" },
 ];
 
 const INITIAL_CLASSES = [
-  { id: "PY-01", name: "Python Cơ bản - Lớp 1", course: "python_basic", instructor: "Thuận", schedule: [{ day: "T7", time: "09:00 - 11:00" }], maxStudents: 8, startDate: "2026-08-17", status: "active" },
-  { id: "CPP-01", name: "C++ Nâng cao - Lớp 1", course: "cpp", instructor: "Hạnh", schedule: [{ day: "T7", time: "14:00 - 16:30" }], maxStudents: 6, startDate: "2026-08-17", status: "active" },
-  { id: "WEB-01", name: "Web Dev - Lớp 1", course: "webdev", instructor: "Thuận", schedule: [{ day: "CN", time: "09:00 - 11:30" }], maxStudents: 8, startDate: "2026-08-18", status: "active" },
-  { id: "SCR-01", name: "Scratch - Lớp 1", course: "scratch", instructor: "Vân Anh", schedule: [{ day: "CN", time: "14:00 - 16:00" }], maxStudents: 10, startDate: "2026-08-18", status: "upcoming" },
-  { id: "ROB-01", name: "Robotics - Lớp 1", course: "robotics", instructor: "Thuận", schedule: [{ day: "T6", time: "17:00 - 19:00" }], maxStudents: 8, startDate: "2026-09-01", status: "upcoming" },
+  { id: "CS-01", name: "Code Start 1 - Lớp A", course: "start_1", instructor: "Vân Anh", schedule: [{ day: "CN", time: "09:00 - 11:00" }], maxStudents: 10, startDate: "2026-08-18", status: "upcoming" },
+  { id: "CS-02", name: "Code Start 2 - Lớp A", course: "start_2", instructor: "Vân Anh", schedule: [{ day: "CN", time: "14:00 - 16:00" }], maxStudents: 10, startDate: "2026-08-18", status: "upcoming" },
+  { id: "CU-01", name: "Code Up 1 - Lớp A", course: "up_1", instructor: "Thuận", schedule: [{ day: "T7", time: "09:00 - 11:00" }], maxStudents: 8, startDate: "2026-08-17", status: "active" },
+  { id: "CU-03", name: "Code Up 3 - Lớp A", course: "up_3", instructor: "Thuận", schedule: [{ day: "T7", time: "14:00 - 16:00" }], maxStudents: 8, startDate: "2026-08-17", status: "active" },
+  { id: "CP-01", name: "Code Pro 1 - Lớp A", course: "pro_1", instructor: "Hạnh", schedule: [{ day: "T7", time: "14:00 - 16:30" }], maxStudents: 6, startDate: "2026-08-17", status: "active" },
+  { id: "PP-01", name: "Code Pro+ 1 - Lớp A", course: "proplus_1", instructor: "Hạnh", schedule: [{ day: "CN", time: "09:00 - 11:30" }], maxStudents: 6, startDate: "2026-08-18", status: "active" },
 ];
 
 const INITIAL_ATTENDANCE = [
-  { id: 1, classId: "PY-01", studentId: 2, date: "2026-08-17", status: "present", note: "" },
-  { id: 2, classId: "PY-01", studentId: 3, date: "2026-08-17", status: "present", note: "" },
-  { id: 3, classId: "CPP-01", studentId: 4, date: "2026-08-17", status: "present", note: "Làm bài tập rất tốt" },
-  { id: 4, classId: "WEB-01", studentId: 1, date: "2026-08-18", status: "present", note: "" },
+  { id: 1, classId: "CU-01", studentId: 2, date: "2026-08-17", status: "present", note: "" },
+  { id: 2, classId: "CU-03", studentId: 3, date: "2026-08-17", status: "present", note: "" },
+  { id: 3, classId: "CP-01", studentId: 4, date: "2026-08-17", status: "present", note: "Làm bài tập rất tốt" },
+  { id: 4, classId: "PP-01", studentId: 1, date: "2026-08-18", status: "present", note: "" },
 ];
 
 const INSTRUCTORS = [
-  { id: 1, name: "Thuận", role: "Co-founder / Lead Instructor", courses: ["python_basic", "webdev", "robotics"], phone: "0901111111" },
-  { id: 2, name: "Vân Anh", role: "Co-founder / Instructor", courses: ["scratch", "python_basic"], phone: "0902222222" },
-  { id: 3, name: "Hạnh", role: "Head of Academics", courses: ["cpp", "python_adv"], phone: "0903333333" },
+  { id: 1, name: "Thuận", role: "Co-founder / Lead Instructor", courses: ["up_1", "up_2", "up_3", "up_4"], phone: "0901111111" },
+  { id: 2, name: "Vân Anh", role: "Co-founder / Instructor", courses: ["start_1", "start_2"], phone: "0902222222" },
+  { id: 3, name: "Hạnh", role: "Head of Academics", courses: ["pro_1", "pro_2", "pro_3", "proplus_1", "proplus_2", "proplus_3"], phone: "0903333333" },
 ];
 
 // --- ICONS ---
@@ -208,7 +224,7 @@ export default function VforgeApp() {
           <Input label="Tên học viên" value={f.studentName} onChange={e=>setF({...f,studentName:e.target.value})} placeholder="Tên con"/>
           <Input label="Tuổi học viên" type="number" value={f.studentAge} onChange={e=>setF({...f,studentAge:e.target.value})} placeholder="VD: 14"/>
           <Select label="Khóa học quan tâm" value={f.course} onChange={e=>setF({...f,course:e.target.value})}>
-            {COURSES.map(c=><option key={c.id} value={c.id}>{c.name} ({c.ageRange} tuổi)</option>)}
+            {COURSE_LEVELS.map(lvl=><optgroup key={lvl.id} label={`${lvl.icon} ${lvl.name}`}>{COURSES.filter(c=>c.level===lvl.id).map(c=><option key={c.id} value={c.id}>{c.name} ({c.ageRange} tuổi)</option>)}</optgroup>)}
           </Select>
           <Select label="Nguồn lead" value={f.source} onChange={e=>setF({...f,source:e.target.value})}>
             {LEAD_SOURCES.map(s=><option key={s} value={s}>{s}</option>)}
@@ -359,7 +375,7 @@ export default function VforgeApp() {
                   <div style={{color:V.textFaint,fontSize:"11px",marginTop:"2px"}}>{c.schedule.map(s=>`${s.day} ${s.time}`).join(", ")} · GV: {c.instructor}</div>
                 </div>
                 <div style={{textAlign:"right"}}>
-                  <div style={{color:course?.color,fontSize:"13px",fontWeight:700}}>{studentCount}/{c.maxStudents}</div>
+                  <div style={{color:getCourseColor(course),fontSize:"13px",fontWeight:700}}>{studentCount}/{c.maxStudents}</div>
                   <Badge color={c.status==="active"?V.mint:V.amber}>{c.status==="active"?"Đang học":"Sắp mở"}</Badge>
                 </div>
               </div>
@@ -420,7 +436,7 @@ export default function VforgeApp() {
                     </div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <Badge color={course?.color}>{course?.name}</Badge>
+                    <Badge color={getCourseColor(course)}>{course?.name}</Badge>
                     <div style={{color:V.textFaint,fontSize:"11px",marginTop:"4px"}}>{l.source}</div>
                   </div>
                 </div>
@@ -462,7 +478,7 @@ export default function VforgeApp() {
           const attendanceRecords = attendance.filter(a=>a.classId===c.id);
           return (
             <div key={c.id} style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}>
-              <div style={{padding:"4px 0",background:`linear-gradient(90deg,${course?.color}44,transparent)`}}/>
+              <div style={{padding:"4px 0",background:`linear-gradient(90deg,${getCourseColor(course)}44,transparent)`}}/>
               <div style={{padding:"18px 20px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px"}}>
                   <div>
@@ -517,7 +533,7 @@ export default function VforgeApp() {
               <div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"10px"}}>
                 {inst.courses.map(cId => {
                   const course = COURSES.find(c=>c.id===cId);
-                  return <Badge key={cId} color={course?.color}>{course?.name}</Badge>;
+                  return <Badge key={cId} color={getCourseColor(course)}>{course?.name}</Badge>;
                 })}
               </div>
               <div style={{marginTop:"10px",color:V.textDim,fontSize:"12px"}}>{teachingClasses.length} lớp đang dạy · {inst.phone}</div>
@@ -572,7 +588,7 @@ export default function VforgeApp() {
                       <div style={{color:V.textMid,fontSize:"13px"}}>{st.parentName}</div>
                       <div style={{color:V.textFaint,fontSize:"11px"}}>{st.parentPhone}</div>
                     </td>
-                    <td style={{padding:"12px 14px"}}><Badge color={course?.color}>{course?.name}</Badge></td>
+                    <td style={{padding:"12px 14px"}}><Badge color={getCourseColor(course)}>{course?.name}</Badge></td>
                     <td style={{padding:"12px 14px",color:V.textDim,fontSize:"13px"}}>{cls?.name||st.classId||"—"}</td>
                     <td style={{padding:"12px 14px",color:V.accent,fontSize:"13px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{formatVND(st.totalFee)}</td>
                     <td style={{padding:"12px 14px",color:V.mint,fontSize:"13px",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{formatVND(st.amountPaid)}</td>
