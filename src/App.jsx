@@ -24,19 +24,19 @@ const COURSES=[
 ];
 const gCC=(c)=>COURSE_LEVELS.find(l=>l.id===c?.level)?.color||V.accent;
 const LEAD_SRC=["Facebook Ads","Zalo","Giới thiệu","Website","Event/Workshop","Walk-in","Khác"];
-const LEAD_ST=[{id:"new",label:"Mới",color:V.accent,bg:V.accentDim},{id:"contacted",label:"Đã liên hệ",color:V.amber,bg:V.amberDim},{id:"trial",label:"Học thử",color:V.purple,bg:V.purpleDim},{id:"negotiating",label:"Đang thương lượng",color:V.cyan,bg:V.cyanDim},{id:"enrolled",label:"Đã đăng ký",color:V.mint,bg:V.mintDim},{id:"lost",label:"Mất lead",color:V.red,bg:V.redDim}];
-const CLASS_ST=[{id:"upcoming",label:"Sắp mở",color:V.amber},{id:"active",label:"Đang diễn ra",color:V.mint},{id:"paused",label:"Tạm dừng",color:V.purple},{id:"completed",label:"Đã kết thúc",color:V.textDim},{id:"cancelled",label:"Đã hủy",color:V.red}];
+const LEAD_ST=[{id:"new",label:"Mới",color:V.accent,bg:V.accentDim},{id:"unreachable",label:"Chưa liên hệ được",color:V.amber,bg:V.amberDim},{id:"enrolled",label:"Đã đăng ký",color:V.purple,bg:V.purpleDim},{id:"paid",label:"Đóng học phí",color:V.mint,bg:V.mintDim},{id:"negotiating",label:"Đang thương lượng",color:V.cyan,bg:V.cyanDim},{id:"renew",label:"ĐK khóa tiếp",color:V.vred,bg:V.vredDim}];
+const CLASS_ST=[{id:"upcoming",label:"Sắp diễn ra",color:V.amber},{id:"active",label:"Đang diễn ra",color:V.mint},{id:"paused",label:"Tạm dừng",color:V.purple},{id:"completed",label:"Đã kết thúc",color:V.textDim},{id:"cancelled",label:"Đã hủy",color:V.red}];
 const PAY_ST=[{id:"pending",label:"Chờ TT",color:V.amber},{id:"partial",label:"Đặt cọc",color:V.cyan},{id:"paid",label:"Đã TT",color:V.mint},{id:"overdue",label:"Quá hạn",color:V.red}];
 
 const I_LEADS=[
   {id:1,parentName:"Chị Hương",studentName:"Minh Đức",phone:"0901234567",email:"huong@gmail.com",course:"up_2",source:"Facebook Ads",status:"new",notes:"Quan tâm Code Up",referrer:"",createdAt:"2026-08-10"},
-  {id:2,parentName:"Anh Tuấn",studentName:"Bảo Ngọc",phone:"0912345678",email:"tuan@gmail.com",course:"pro_1",source:"Giới thiệu",status:"contacted",notes:"HSG Tin",referrer:"Quang Minh",createdAt:"2026-08-08"},
-  {id:3,parentName:"Chị Mai",studentName:"Hải Đăng",phone:"0923456789",email:"",course:"start_1",source:"Website",status:"trial",notes:"Học thử 17/8",referrer:"",createdAt:"2026-08-05"},
+  {id:2,parentName:"Anh Tuấn",studentName:"Bảo Ngọc",phone:"0912345678",email:"tuan@gmail.com",course:"pro_1",source:"Giới thiệu",status:"unreachable",notes:"HSG Tin",referrer:"Quang Minh",createdAt:"2026-08-08"},
+  {id:3,parentName:"Chị Mai",studentName:"Hải Đăng",phone:"0923456789",email:"",course:"start_1",source:"Website",status:"enrolled",notes:"Học thử 17/8",referrer:"",createdAt:"2026-08-05"},
   {id:4,parentName:"Anh Khoa",studentName:"Gia Hân",phone:"0934567890",email:"khoa@gmail.com",course:"up_3",source:"Event/Workshop",status:"negotiating",notes:"Hỏi giảm HP 2 con",referrer:"",createdAt:"2026-08-03"},
   {id:5,parentName:"Chị Thảo",studentName:"Quang Minh",phone:"0945678901",email:"thao@gmail.com",course:"proplus_1",source:"Zalo",status:"enrolled",notes:"Đã đóng full",referrer:"",createdAt:"2026-07-28"},
   {id:6,parentName:"Anh Dũng",studentName:"Thanh Tùng",phone:"0956789012",email:"",course:"up_1",source:"Walk-in",status:"enrolled",notes:"Walk-in",referrer:"",createdAt:"2026-08-01"},
-  {id:7,parentName:"Chị Lan",studentName:"Phương Anh",phone:"0967890123",email:"lan@gmail.com",course:"start_1",source:"Facebook Ads",status:"lost",notes:"Xa nhà",referrer:"",createdAt:"2026-07-20"},
-  {id:8,parentName:"Anh Hải",studentName:"Đức Anh",phone:"0978901234",email:"hai@gmail.com",course:"pro_2",source:"Giới thiệu",status:"contacted",notes:"Đang cân nhắc",referrer:"Quang Minh",createdAt:"2026-08-12"},
+  {id:7,parentName:"Chị Lan",studentName:"Phương Anh",phone:"0967890123",email:"lan@gmail.com",course:"start_1",source:"Facebook Ads",status:"new",notes:"Xa nhà",referrer:"",createdAt:"2026-07-20"},
+  {id:8,parentName:"Anh Hải",studentName:"Đức Anh",phone:"0978901234",email:"hai@gmail.com",course:"pro_2",source:"Giới thiệu",status:"unreachable",notes:"Đang cân nhắc",referrer:"Quang Minh",createdAt:"2026-08-12"},
 ];
 const I_STU=[
   {id:1,name:"Quang Minh",parentName:"Chị Thảo",parentPhone:"0945678901",course:"proplus_1",classId:"PP-01",enrollDate:"2026-08-01",paymentStatus:"paid",amountPaid:3800000,totalFee:3800000,note:""},
@@ -49,10 +49,10 @@ const I_CLS=[
   {id:"CS-01",name:"Code Start 1 - Lớp A",course:"start_1",instructor:"Vân Anh",schedule:[{day:"CN",time:"09:00-11:00"}],maxStudents:10,startDate:"2026-08-18",status:"upcoming"},
   {id:"CS-02",name:"Code Start 1 - Lớp B",course:"start_1",instructor:"Vân Anh",schedule:[{day:"T7",time:"09:00-11:00"}],maxStudents:10,startDate:"2026-08-24",status:"upcoming"},
   {id:"CS-03",name:"Code Start 2 - Lớp A",course:"start_2",instructor:"Vân Anh",schedule:[{day:"CN",time:"14:00-16:00"}],maxStudents:10,startDate:"2026-08-18",status:"upcoming"},
-  {id:"CU-01",name:"Code Up 1 - Lớp A",course:"up_1",instructor:"Thuận",schedule:[{day:"T7",time:"09:00-11:00"}],maxStudents:8,startDate:"2026-08-17",status:"active"},
-  {id:"CU-03",name:"Code Up 3 - Lớp A",course:"up_3",instructor:"Thuận",schedule:[{day:"T7",time:"14:00-16:00"}],maxStudents:8,startDate:"2026-08-17",status:"active"},
-  {id:"CP-01",name:"Code Pro 1 - Lớp A",course:"pro_1",instructor:"Hạnh",schedule:[{day:"T7",time:"14:00-16:30"}],maxStudents:6,startDate:"2026-08-17",status:"active"},
-  {id:"PP-01",name:"Code Pro+ 1 - Lớp A",course:"proplus_1",instructor:"Hạnh",schedule:[{day:"CN",time:"09:00-11:30"}],maxStudents:6,startDate:"2026-08-18",status:"active"},
+  {id:"CU-01",name:"Code Up 1 - Lớp A",course:"up_1",instructor:"Thuận",schedule:[{day:"T7",time:"09:00-11:00"}],maxStudents:8,startDate:"2026-08-17",status:"upcoming"},
+  {id:"CU-03",name:"Code Up 3 - Lớp A",course:"up_3",instructor:"Thuận",schedule:[{day:"T7",time:"14:00-16:00"}],maxStudents:8,startDate:"2026-08-17",status:"upcoming"},
+  {id:"CP-01",name:"Code Pro 1 - Lớp A",course:"pro_1",instructor:"Hạnh",schedule:[{day:"T7",time:"14:00-16:30"}],maxStudents:6,startDate:"2026-08-17",status:"upcoming"},
+  {id:"PP-01",name:"Code Pro+ 1 - Lớp A",course:"proplus_1",instructor:"Hạnh",schedule:[{day:"CN",time:"09:00-11:30"}],maxStudents:6,startDate:"2026-08-18",status:"upcoming"},
 ];
 const I_ATT=[{id:1,classId:"CU-01",studentId:2,date:"2026-08-17",status:"present",note:""},{id:2,classId:"CU-03",studentId:3,date:"2026-08-17",status:"present",note:""},{id:3,classId:"CP-01",studentId:4,date:"2026-08-17",status:"present",note:""},{id:4,classId:"PP-01",studentId:1,date:"2026-08-18",status:"present",note:""}];
 const INST=[{id:1,name:"Thuận",role:"Co-founder / Lead Instructor",courses:["up_1","up_2","up_3","up_4"],phone:"0901111111"},{id:2,name:"Vân Anh",role:"Co-founder / Instructor",courses:["start_1","start_2"],phone:"0902222222"},{id:3,name:"Hạnh",role:"Head of Academics",courses:["pro_1","pro_2","pro_3","proplus_1","proplus_2","proplus_3"],phone:"0903333333"}];
@@ -72,6 +72,7 @@ const Logo=({w=120})=><svg width={w} height={w*0.3} viewBox="0 0 260 80" xmlns="
 
 export default function VforgeApp(){
   const[user,setUser]=useState(null);
+  const[accounts,setAccounts]=useState(ACCOUNTS);
   const[tab,setTab]=useState("dashboard");
   const[leads,setLeads]=useState(I_LEADS);
   const[students,setStudents]=useState(I_STU);
@@ -85,8 +86,8 @@ export default function VforgeApp(){
   const can=(t)=>user&&ROLE_CFG[user.role]?.tabs.includes(t);
   const totRev=students.reduce((s,st)=>s+st.amountPaid,0);
   const pendRev=students.reduce((s,st)=>s+(st.totalFee-st.amountPaid),0);
-  const actLeads=leads.filter(l=>!["enrolled","lost"].includes(l.status)).length;
-  const convR=leads.length>0?((leads.filter(l=>l.status==="enrolled").length/leads.length)*100).toFixed(0):0;
+  const actLeads=leads.filter(l=>!["paid","renew"].includes(l.status)).length;
+  const convR=leads.length>0?((leads.filter(l=>l.status==="paid").length/leads.length)*100).toFixed(0):0;
   const lbySt=useMemo(()=>{const m={};LEAD_ST.forEach(s=>m[s.id]=leads.filter(l=>l.status===s.id));return m},[leads]);
   const clsSC=(cid)=>students.filter(s=>s.classId===cid).length;
   const bestCls=(crs)=>{const a=classes.filter(c=>c.course===crs&&["upcoming","active"].includes(c.status));if(!a.length)return null;return a.reduce((b,c)=>clsSC(c.id)<clsSC(b.id)?c:b)};
@@ -105,7 +106,7 @@ export default function VforgeApp(){
         <div>Admin: <b>admin</b> / admin123</div><div>Sales: <b>sales</b> / sales123</div><div>Lễ tân: <b>reception</b> / letan123</div>
       </div>
     </div></div>);
-    function doLogin(){const f=ACCOUNTS.find(a=>a.username===u&&a.password===p);if(f){setUser(f);setTab("dashboard")}else setE("Sai tên đăng nhập hoặc mật khẩu")}};
+    function doLogin(){const f=accounts.find(a=>a.username===u&&a.password===p);if(f){setUser(f);setTab("dashboard")}else setE("Sai tên đăng nhập hoặc mật khẩu")}};
     return<Login/>}
 
   // ADD LEAD
@@ -151,7 +152,7 @@ export default function VforgeApp(){
   // DASHBOARD
   const Dash=()=>(<div>
     <div style={{marginBottom:"24px"}}><h2 style={{color:V.text,margin:"0 0 4px",fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>Dashboard <span style={{color:"#EF4136"}}>V</span><span style={{color:V.accent}}>forge</span></h2><p style={{color:V.textFaint,margin:0,fontSize:"13px"}}>{new Date().toLocaleDateString("vi-VN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p></div>
-    <div style={{display:"flex",flexWrap:"wrap",gap:"14px",marginBottom:"24px"}}><Stat label="Đã thu" value={fmt(totRev)} icon="💰" color={V.mint} sub={`Chờ thu: ${fmt(pendRev)}`}/><Stat label="Học viên" value={students.length} icon="🎓" color={V.accent} sub={`${classes.filter(c=>c.status==="active").length} lớp hoạt động`}/><Stat label="Lead xử lý" value={actLeads} icon="📞" color={V.amber} sub={`Chuyển đổi: ${convR}%`}/><Stat label="Tổng Lead" value={leads.length} icon="📊" color={V.purple} sub={`${leads.filter(l=>l.status==="enrolled").length} đã ĐK`}/></div>
+    <div style={{display:"flex",flexWrap:"wrap",gap:"14px",marginBottom:"24px"}}><Stat label="Đã thu" value={fmt(totRev)} icon="💰" color={V.mint} sub={`Chờ thu: ${fmt(pendRev)}`}/><Stat label="Học viên" value={students.length} icon="🎓" color={V.accent} sub={`${classes.filter(c=>c.status==="active").length} lớp hoạt động`}/><Stat label="Lead xử lý" value={actLeads} icon="📞" color={V.amber} sub={`Chuyển đổi: ${convR}%`}/><Stat label="Tổng Lead" value={leads.length} icon="📊" color={V.purple} sub={`${leads.filter(l=>l.status==="paid").length} đã đóng HP`}/></div>
     <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"20px",marginBottom:"20px"}}><h3 style={{color:V.accent,margin:"0 0 16px",fontSize:"14px",fontWeight:700}}>🔄 Sales Pipeline</h3><div style={{display:"flex",gap:"8px",overflowX:"auto"}}>{LEAD_ST.map(s=><div key={s.id} style={{flex:1,minWidth:"90px",textAlign:"center",padding:"14px 10px",background:s.bg,borderRadius:"10px"}}><div style={{color:s.color,fontSize:"28px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>{lbySt[s.id]?.length||0}</div><div style={{color:V.textDim,fontSize:"11px",fontWeight:600,marginTop:"4px"}}>{s.label}</div></div>)}</div></div>
     <div style={{display:"flex",flexWrap:"wrap",gap:"16px"}}>
       <div style={{flex:1,minWidth:"300px",background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"20px"}}><h3 style={{color:V.accent,margin:"0 0 14px",fontSize:"14px",fontWeight:700}}>📞 Lead gần đây</h3>{leads.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,5).map(l=>{const st=LEAD_ST.find(s=>s.id===l.status);const co=COURSES.find(c=>c.id===l.course);return<div key={l.id} style={{padding:"10px 0",borderBottom:`1px solid ${V.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{l.studentName} <span style={{color:V.textFaint,fontWeight:400}}>({l.parentName})</span></div><div style={{color:V.textFaint,fontSize:"11px",marginTop:"2px"}}>{co?.name} · {l.source}</div></div><Badge color={st?.color} bg={st?.bg}>{st?.label}</Badge></div>})}</div>
@@ -163,15 +164,15 @@ export default function VforgeApp(){
   const SalesP=()=>{const fl=leads.filter(l=>leadF==="all"||l.status===leadF).filter(l=>!search||[l.studentName,l.parentName,l.phone,l.email].some(x=>(x||"").toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   return(<div>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}><h2 style={{color:V.text,margin:0,fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>📞 Quản lý <span style={{color:V.accent}}>Sales</span></h2><Btn onClick={()=>setModal("add_lead")}><Ic.Plus/> Thêm Lead</Btn></div>
-    <div style={{display:"flex",gap:"8px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}><div style={{position:"relative",flex:1,minWidth:"200px"}}><div style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",color:V.textFaint}}><Ic.Search/></div><input placeholder="Tìm lead..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"9px 14px 9px 36px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"8px",color:V.text,fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div><div style={{display:"flex",gap:"4px",flexWrap:"wrap"}}><Btn small variant={leadF==="all"?"primary":"ghost"} onClick={()=>setLeadF("all")}>Tất cả ({leads.length})</Btn>{LEAD_ST.filter(s=>!["enrolled","lost"].includes(s.id)).map(s=><Btn key={s.id} small variant={leadF===s.id?"primary":"ghost"} onClick={()=>setLeadF(s.id)}>{s.label} ({lbySt[s.id]?.length||0})</Btn>)}</div></div>
-    <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1050px"}}><thead><tr><TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Trình độ</TH><TH>Ghi chú</TH><TH>Người GT</TH><TH></TH></tr></thead>
-    <tbody>{fl.map(l=>{const st=LEAD_ST.find(s=>s.id===l.status);const co=COURSES.find(c=>c.id===l.course);return<tr key={l.id} onMouseEnter={e=>e.currentTarget.style.background=V.surface2} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+    <div style={{display:"flex",gap:"8px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}><div style={{position:"relative",flex:1,minWidth:"200px"}}><div style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",color:V.textFaint}}><Ic.Search/></div><input placeholder="Tìm lead..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"9px 14px 9px 36px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"8px",color:V.text,fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div><div style={{display:"flex",gap:"4px",flexWrap:"wrap"}}><Btn small variant={leadF==="all"?"primary":"ghost"} onClick={()=>setLeadF("all")}>Tất cả ({leads.length})</Btn>{LEAD_ST.map(s=><Btn key={s.id} small variant={leadF===s.id?"primary":"ghost"} onClick={()=>setLeadF(s.id)}>{s.label} ({lbySt[s.id]?.length||0})</Btn>)}</div></div>
+    <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1150px"}}><thead><tr><TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Trình độ</TH><TH>Xếp lớp</TH><TH>Ghi chú</TH><TH>Người GT</TH></tr></thead>
+    <tbody>{fl.map(l=>{const st=LEAD_ST.find(s=>s.id===l.status);const co=COURSES.find(c=>c.id===l.course);const isPaid=l.status==="paid";const ac=classes.filter(c=>c.course===l.course&&["upcoming","active"].includes(c.status));const bc=bestCls(l.course);return<tr key={l.id} onMouseEnter={e=>e.currentTarget.style.background=V.surface2} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
       <TD style={{color:V.text,fontWeight:600}}>{l.parentName}</TD><TD style={{color:V.text,fontWeight:600}}>{l.studentName}</TD><TD>{l.phone}</TD><TD style={{fontSize:"12px"}}>{l.email||"—"}</TD>
-      <TD>{!["enrolled","lost"].includes(l.status)?<select value={l.status} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,status:e.target.value}:x))} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>:<Badge color={st?.color} bg={st?.bg}>{st?.label}</Badge>}</TD>
+      <TD><select value={l.status} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,status:e.target.value}:x))} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></TD>
       <TD><Badge color={V.textDim}>{l.source}</Badge></TD><TD><Badge color={gCC(co)}>{co?.name}</Badge></TD>
+      <TD>{isPaid?(ac.length>0?<select value={l.assignedClass||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!students.find(s=>s.name===l.studentName&&s.course===l.course)){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:""}])}else{setStudents(p=>p.map(s=>s.name===l.studentName&&s.course===l.course?{...s,classId:cid}:s))}}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.textFaint,fontSize:"11px"}}>Chưa có lớp</span>):<span style={{color:V.textGhost,fontSize:"11px"}}>Cần đóng HP</span>}</TD>
       <TD style={{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:"12px",color:V.textDim}}>{l.notes||"—"}</TD>
       <TD style={{color:l.referrer?V.accent:V.textGhost,fontWeight:l.referrer?600:400,fontSize:"12px"}}>{l.referrer||"—"}</TD>
-      <TD>{!["enrolled","lost"].includes(l.status)&&["negotiating","trial"].includes(l.status)&&<Btn small variant="mint" onClick={()=>setModal({type:"enroll",lead:l})}>✅ ĐK</Btn>}</TD>
     </tr>})}</tbody></table></div>{!fl.length&&<div style={{textAlign:"center",padding:"40px",color:V.textFaint}}>Không tìm thấy lead</div>}</div>
   </div>)};
 
@@ -181,7 +182,7 @@ export default function VforgeApp(){
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:"14px",marginBottom:"28px"}}>{classes.map(c=>{const co=COURSES.find(x=>x.id===c.course);const sc=clsSC(c.id);const cs2=CLASS_ST.find(s=>s.id===c.status);const cst=students.filter(s=>s.classId===c.id);
     return<div key={c.id} style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{padding:"4px 0",background:`linear-gradient(90deg,${gCC(co)}44,transparent)`}}/><div style={{padding:"18px 20px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px"}}><div><div style={{color:V.text,fontWeight:700,fontSize:"15px"}}>{c.name}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"2px"}}>{co?.name}</div></div>
-      {user.role==="admin"?<select value={c.status} onChange={e=>setClasses(p=>p.map(x=>x.id===c.id?{...x,status:e.target.value}:x))} style={{padding:"4px 8px",background:`${cs2?.color}18`,border:`1px solid ${cs2?.color}44`,borderRadius:"6px",color:cs2?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{CLASS_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>:<Badge color={cs2?.color}>{cs2?.label}</Badge>}</div>
+      {(user.role==="admin"||user.role==="reception")?<select value={c.status} onChange={e=>setClasses(p=>p.map(x=>x.id===c.id?{...x,status:e.target.value}:x))} style={{padding:"4px 8px",background:`${cs2?.color}18`,border:`1px solid ${cs2?.color}44`,borderRadius:"6px",color:cs2?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{CLASS_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>:<Badge color={cs2?.color}>{cs2?.label}</Badge>}</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"12px"}}>
         <div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Lịch học</div><div style={{color:V.textMid,fontSize:"13px",fontWeight:600,marginTop:"2px"}}>{c.schedule.map(s=>`${s.day} ${s.time}`).join(", ")}</div></div>
         <div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Giảng viên</div><div style={{color:V.textMid,fontSize:"13px",fontWeight:600,marginTop:"2px"}}>{c.instructor}</div></div>
@@ -205,10 +206,32 @@ export default function VforgeApp(){
 
   // SETTINGS (Admin)
   const SetP=()=>{const[np,setNp]=useState(adminPw);const[sv,setSv]=useState(false);
+  const[showAdd,setShowAdd]=useState(false);const[nf,setNf]=useState({name:"",username:"",password:"",role:"sales"});const[delConfirm,setDelConfirm]=useState(null);
   return(<div><h2 style={{color:V.text,margin:"0 0 24px",fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>⚙️ <span style={{color:V.accent}}>Cài đặt</span></h2>
-    <div style={{maxWidth:"500px"}}>
+    <div style={{maxWidth:"600px"}}>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginBottom:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔐 Mật khẩu chuyển lớp</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Dùng khi Sales muốn chuyển HV sang lớp khác thay vì lớp tự động.</p><Inp label="Mật khẩu" value={np} onChange={e=>{setNp(e.target.value);setSv(false)}}/><Btn onClick={()=>{setAdminPw(np);setSv(true)}}>{sv?"✅ Đã lưu":"💾 Lưu"}</Btn></div>
-      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>👥 Tài khoản</h3>{ACCOUNTS.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${V.border}`}}><div><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{a.name}</div><div style={{color:V.textFaint,fontSize:"12px"}}>@{a.username}</div></div><Badge color={ROLE_CFG[a.role]?.color}>{ROLE_CFG[a.role]?.label}</Badge></div>)}</div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}><h3 style={{color:V.text,margin:0,fontSize:"15px",fontWeight:700}}>👥 Tài khoản hệ thống</h3><Btn small onClick={()=>setShowAdd(!showAdd)}>{showAdd?"✕ Đóng":"+ Tạo TK"}</Btn></div>
+        {showAdd&&<div style={{background:V.bg,borderRadius:"10px",padding:"16px",marginBottom:"16px",border:`1px solid ${V.border}`}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+            <Inp label="Họ tên" value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="VD: Nguyễn Văn A"/>
+            <Inp label="Tên đăng nhập" value={nf.username} onChange={e=>setNf({...nf,username:e.target.value})} placeholder="VD: nguyenvana"/>
+            <Inp label="Mật khẩu" value={nf.password} onChange={e=>setNf({...nf,password:e.target.value})} placeholder="Tối thiểu 6 ký tự"/>
+            <Sel label="Vai trò" value={nf.role} onChange={e=>setNf({...nf,role:e.target.value})}><option value="admin">Admin</option><option value="sales">Sales</option><option value="reception">Lễ tân</option></Sel>
+          </div>
+          <Btn onClick={()=>{if(!nf.name||!nf.username||!nf.password)return;if(accounts.find(a=>a.username===nf.username)){alert("Username đã tồn tại!");return}setAccounts(p=>[...p,{id:Date.now(),...nf}]);setNf({name:"",username:"",password:"",role:"sales"});setShowAdd(false)}} style={{width:"100%"}}>✅ Tạo tài khoản</Btn>
+        </div>}
+        {accounts.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:`1px solid ${V.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <div style={{width:"36px",height:"36px",borderRadius:"10px",background:`${ROLE_CFG[a.role]?.color}18`,display:"flex",alignItems:"center",justifyContent:"center",color:ROLE_CFG[a.role]?.color,fontWeight:700,fontSize:"14px"}}>{a.name.charAt(0)}</div>
+            <div><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{a.name}</div><div style={{color:V.textFaint,fontSize:"12px"}}>@{a.username}</div></div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+            <Badge color={ROLE_CFG[a.role]?.color}>{ROLE_CFG[a.role]?.label}</Badge>
+            {a.id!==user.id&&(delConfirm===a.id?<div style={{display:"flex",gap:"4px"}}><Btn small variant="danger" onClick={()=>{setAccounts(p=>p.filter(x=>x.id!==a.id));setDelConfirm(null)}}>Xóa</Btn><Btn small variant="ghost" onClick={()=>setDelConfirm(null)}>Hủy</Btn></div>:<Btn small variant="ghost" onClick={()=>setDelConfirm(a.id)} style={{color:V.red,fontSize:"11px"}}>🗑</Btn>)}
+          </div>
+        </div>)}
+      </div>
     </div>
   </div>)};
 
