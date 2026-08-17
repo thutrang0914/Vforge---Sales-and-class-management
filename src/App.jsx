@@ -50,9 +50,15 @@ const I_CLS=[
   {id:"CS-02",name:"Code Start 1 - Lớp B",course:"start_1",instructor:"Vân Anh",schedule:[{day:"T7",time:"09:00-11:00"}],maxStudents:10,startDate:"2026-08-24",status:"upcoming"},
   {id:"CS-03",name:"Code Start 2 - Lớp A",course:"start_2",instructor:"Vân Anh",schedule:[{day:"CN",time:"14:00-16:00"}],maxStudents:10,startDate:"2026-08-18",status:"upcoming"},
   {id:"CU-01",name:"Code Up 1 - Lớp A",course:"up_1",instructor:"Thuận",schedule:[{day:"T7",time:"09:00-11:00"}],maxStudents:8,startDate:"2026-08-17",status:"upcoming"},
-  {id:"CU-03",name:"Code Up 3 - Lớp A",course:"up_3",instructor:"Thuận",schedule:[{day:"T7",time:"14:00-16:00"}],maxStudents:8,startDate:"2026-08-17",status:"upcoming"},
+  {id:"CU-02",name:"Code Up 2 - Lớp A",course:"up_2",instructor:"Thuận",schedule:[{day:"T7",time:"14:00-16:00"}],maxStudents:8,startDate:"2026-08-24",status:"upcoming"},
+  {id:"CU-03",name:"Code Up 3 - Lớp A",course:"up_3",instructor:"Thuận",schedule:[{day:"CN",time:"09:00-11:00"}],maxStudents:8,startDate:"2026-08-17",status:"upcoming"},
+  {id:"CU-04",name:"Code Up 4 - Lớp A",course:"up_4",instructor:"Thuận",schedule:[{day:"CN",time:"14:00-16:00"}],maxStudents:8,startDate:"2026-08-24",status:"upcoming"},
   {id:"CP-01",name:"Code Pro 1 - Lớp A",course:"pro_1",instructor:"Hạnh",schedule:[{day:"T7",time:"14:00-16:30"}],maxStudents:6,startDate:"2026-08-17",status:"upcoming"},
+  {id:"CP-02",name:"Code Pro 2 - Lớp A",course:"pro_2",instructor:"Hạnh",schedule:[{day:"CN",time:"14:00-16:30"}],maxStudents:6,startDate:"2026-08-24",status:"upcoming"},
+  {id:"CP-03",name:"Code Pro 3 - Lớp A",course:"pro_3",instructor:"Hạnh",schedule:[{day:"T7",time:"17:00-19:30"}],maxStudents:6,startDate:"2026-09-01",status:"upcoming"},
   {id:"PP-01",name:"Code Pro+ 1 - Lớp A",course:"proplus_1",instructor:"Hạnh",schedule:[{day:"CN",time:"09:00-11:30"}],maxStudents:6,startDate:"2026-08-18",status:"upcoming"},
+  {id:"PP-02",name:"Code Pro+ 2 - Lớp A",course:"proplus_2",instructor:"Hạnh",schedule:[{day:"T7",time:"09:00-11:30"}],maxStudents:6,startDate:"2026-09-01",status:"upcoming"},
+  {id:"PP-03",name:"Code Pro+ 3 - Lớp A",course:"proplus_3",instructor:"Hạnh",schedule:[{day:"CN",time:"14:00-16:30"}],maxStudents:6,startDate:"2026-09-01",status:"upcoming"},
 ];
 const I_ATT=[{id:1,classId:"CU-01",studentId:2,date:"2026-08-17",status:"present",note:""},{id:2,classId:"CU-03",studentId:3,date:"2026-08-17",status:"present",note:""},{id:3,classId:"CP-01",studentId:4,date:"2026-08-17",status:"present",note:""},{id:4,classId:"PP-01",studentId:1,date:"2026-08-18",status:"present",note:""}];
 const INST=[{id:1,name:"Thuận",role:"Co-founder / Lead Instructor",courses:["up_1","up_2","up_3","up_4"],phone:"0901111111"},{id:2,name:"Vân Anh",role:"Co-founder / Instructor",courses:["start_1","start_2"],phone:"0902222222"},{id:3,name:"Hạnh",role:"Head of Academics",courses:["pro_1","pro_2","pro_3","proplus_1","proplus_2","proplus_3"],phone:"0903333333"}];
@@ -140,6 +146,27 @@ export default function VforgeApp(){
     <Btn onClick={()=>{if(!ok)return;setStudents(p=>[...p,{id:Date.now(),name:lead.studentName,parentName:lead.parentName,parentPhone:lead.phone,course:lead.course,classId:sel,enrollDate:tod(),paymentStatus:"pending",amountPaid:0,totalFee:co?.fee||0,note:""}]);setLeads(p=>p.map(l=>l.id===lead.id?{...l,status:"enrolled"}:l));setModal(null)}} style={{width:"100%",opacity:ok?1:0.5,cursor:ok?"pointer":"not-allowed"}}>✅ Xác nhận đăng ký</Btn>
   </Modal>);function vfy(){if(pw===adminPw){setPv(true);setPe("")}else setPe("Sai mật khẩu")}};
 
+  // ADD CLASS
+  const AddCls=()=>{const[f,setF]=useState({course:COURSES[0].id,name:"",instructor:INST[0].name,day:"T7",timeStart:"09:00",timeEnd:"11:00",maxStudents:8,startDate:tod()});
+  const co=COURSES.find(c=>c.id===f.course);const lvl=COURSE_LEVELS.find(l=>l.id===co?.level);
+  const autoName=()=>{const existing=classes.filter(c=>c.course===f.course);const letter=String.fromCharCode(65+existing.length);return`${co?.name} - Lớp ${letter}`};
+  return(<Modal title="📚 Tạo lớp học mới" onClose={()=>setModal(null)} wide>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+      <Sel label="Khóa học" value={f.course} onChange={e=>setF({...f,course:e.target.value})}>{COURSE_LEVELS.map(lv=><optgroup key={lv.id} label={`${lv.icon} ${lv.name}`}>{COURSES.filter(c=>c.level===lv.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</Sel>
+      <Inp label="Tên lớp" value={f.name||autoName()} onChange={e=>setF({...f,name:e.target.value})}/>
+      <Sel label="Giảng viên" value={f.instructor} onChange={e=>setF({...f,instructor:e.target.value})}>{INST.map(i=><option key={i.id} value={i.name}>{i.name} - {i.role}</option>)}</Sel>
+      <Inp label="Sĩ số tối đa" type="number" value={f.maxStudents} onChange={e=>setF({...f,maxStudents:Number(e.target.value)})}/>
+      <Sel label="Ngày học" value={f.day} onChange={e=>setF({...f,day:e.target.value})}><option value="T2">Thứ 2</option><option value="T3">Thứ 3</option><option value="T4">Thứ 4</option><option value="T5">Thứ 5</option><option value="T6">Thứ 6</option><option value="T7">Thứ 7</option><option value="CN">Chủ nhật</option></Sel>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 8px"}}><Inp label="Giờ bắt đầu" type="time" value={f.timeStart} onChange={e=>setF({...f,timeStart:e.target.value})}/><Inp label="Giờ kết thúc" type="time" value={f.timeEnd} onChange={e=>setF({...f,timeEnd:e.target.value})}/></div>
+      <Inp label="Ngày khai giảng" type="date" value={f.startDate} onChange={e=>setF({...f,startDate:e.target.value})}/>
+    </div>
+    <div style={{background:V.accentDim,borderRadius:"10px",padding:"14px 16px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{f.name||autoName()}</div><div style={{color:V.textDim,fontSize:"12px",marginTop:"2px"}}>{co?.name} · {f.day} {f.timeStart}-{f.timeEnd} · GV: {f.instructor}</div></div>
+      <Badge color={lvl?.color}>{lvl?.icon} {lvl?.name}</Badge>
+    </div>
+    <Btn onClick={()=>{const nm=f.name||autoName();const id=`CLS-${Date.now()}`;setClasses(p=>[...p,{id,name:nm,course:f.course,instructor:f.instructor,schedule:[{day:f.day,time:`${f.timeStart}-${f.timeEnd}`}],maxStudents:f.maxStudents,startDate:f.startDate,status:"upcoming"}]);setModal(null)}} style={{width:"100%"}}>✅ Tạo lớp</Btn>
+  </Modal>)};
+
   // ATTENDANCE
   const Attend=()=>{const ac=classes.filter(c=>c.status==="active");const[sc,setSc]=useState(ac[0]?.id||"");const[dt,setDt]=useState(tod());const cs=students.filter(s=>s.classId===sc);const[mk,setMk]=useState({});
   return(<Modal title="📋 Điểm danh" onClose={()=>setModal(null)} wide>
@@ -168,7 +195,7 @@ export default function VforgeApp(){
     <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1150px"}}><thead><tr><TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Trình độ</TH><TH>Xếp lớp</TH><TH>Ghi chú</TH><TH>Người GT</TH></tr></thead>
     <tbody>{fl.map(l=>{const st=LEAD_ST.find(s=>s.id===l.status);const co=COURSES.find(c=>c.id===l.course);const isPaid=l.status==="paid";const ac=classes.filter(c=>c.course===l.course&&["upcoming","active"].includes(c.status));const bc=bestCls(l.course);return<tr key={l.id} onMouseEnter={e=>e.currentTarget.style.background=V.surface2} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
       <TD style={{color:V.text,fontWeight:600}}>{l.parentName}</TD><TD style={{color:V.text,fontWeight:600}}>{l.studentName}</TD><TD>{l.phone}</TD><TD style={{fontSize:"12px"}}>{l.email||"—"}</TD>
-      <TD><select value={l.status} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,status:e.target.value}:x))} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></TD>
+      <TD><select value={l.status} onChange={e=>{const ns=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,status:ns}:x));if(ns==="paid"){const b=bestCls(l.course);if(b&&!students.find(s=>s.name===l.studentName&&s.course===l.course)){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:"Auto-assign"}]);setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:b.id}:x))}}}} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></TD>
       <TD><Badge color={V.textDim}>{l.source}</Badge></TD><TD><Badge color={gCC(co)}>{co?.name}</Badge></TD>
       <TD>{isPaid?(ac.length>0?<select value={l.assignedClass||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!students.find(s=>s.name===l.studentName&&s.course===l.course)){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:""}])}else{setStudents(p=>p.map(s=>s.name===l.studentName&&s.course===l.course?{...s,classId:cid}:s))}}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.textFaint,fontSize:"11px"}}>Chưa có lớp</span>):<span style={{color:V.textGhost,fontSize:"11px"}}>Cần đóng HP</span>}</TD>
       <TD style={{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:"12px",color:V.textDim}}>{l.notes||"—"}</TD>
@@ -178,7 +205,7 @@ export default function VforgeApp(){
 
   // CLASSES (editable status)
   const ClassP=()=>(<div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}><h2 style={{color:V.text,margin:0,fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>📚 Quản lý <span style={{color:V.accent}}>Lớp học</span></h2><Btn variant="secondary" onClick={()=>setModal("attendance")}><Ic.Check/> Điểm danh</Btn></div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}><h2 style={{color:V.text,margin:0,fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>📚 Quản lý <span style={{color:V.accent}}>Lớp học</span></h2><div style={{display:"flex",gap:"8px"}}><Btn variant="secondary" onClick={()=>setModal("attendance")}><Ic.Check/> Điểm danh</Btn>{(user.role==="admin")&&<Btn onClick={()=>setModal("add_class")}><Ic.Plus/> Tạo lớp</Btn>}</div></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:"14px",marginBottom:"28px"}}>{classes.map(c=>{const co=COURSES.find(x=>x.id===c.course);const sc=clsSC(c.id);const cs2=CLASS_ST.find(s=>s.id===c.status);const cst=students.filter(s=>s.classId===c.id);
     return<div key={c.id} style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{padding:"4px 0",background:`linear-gradient(90deg,${gCC(co)}44,transparent)`}}/><div style={{padding:"18px 20px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px"}}><div><div style={{color:V.text,fontWeight:700,fontSize:"15px"}}>{c.name}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"2px"}}>{co?.name}</div></div>
@@ -248,6 +275,6 @@ export default function VforgeApp(){
       <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>setUser(null)}><Ic.Logout/></Btn></div>
     </div></div>
     <div style={{maxWidth:"1200px",margin:"0 auto",padding:"24px"}}>{can(tab)?pg[tab]:<div style={{textAlign:"center",padding:"60px",color:V.textFaint}}>Không có quyền truy cập</div>}</div>
-    {modal==="add_lead"&&<AddLead/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}
+    {modal==="add_lead"&&<AddLead/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}
   </div>);
 }
