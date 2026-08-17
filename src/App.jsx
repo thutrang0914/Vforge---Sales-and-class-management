@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const V = {
   bg:"#f7f8fa",surface:"#ffffff",surface2:"#f0f2f5",border:"#e0e4ea",border2:"#d0d5dd",
@@ -33,8 +33,8 @@ const I_LEADS=[
   {id:2,parentName:"Anh Tuấn",studentName:"Bảo Ngọc",phone:"0912345678",email:"tuan@gmail.com",course:"pro_1",source:"Giới thiệu",status:"unreachable",notes:"HSG Tin",referrer:"Quang Minh",createdAt:"2026-08-08"},
   {id:3,parentName:"Chị Mai",studentName:"Hải Đăng",phone:"0923456789",email:"",course:"start_1",source:"Website",status:"enrolled",notes:"Học thử 17/8",referrer:"",createdAt:"2026-08-05"},
   {id:4,parentName:"Anh Khoa",studentName:"Gia Hân",phone:"0934567890",email:"khoa@gmail.com",course:"up_3",source:"Event/Workshop",status:"negotiating",notes:"Hỏi giảm HP 2 con",referrer:"",createdAt:"2026-08-03"},
-  {id:5,parentName:"Chị Thảo",studentName:"Quang Minh",phone:"0945678901",email:"thao@gmail.com",course:"proplus_1",source:"Zalo",status:"enrolled",notes:"Đã đóng full",referrer:"",createdAt:"2026-07-28"},
-  {id:6,parentName:"Anh Dũng",studentName:"Thanh Tùng",phone:"0956789012",email:"",course:"up_1",source:"Walk-in",status:"enrolled",notes:"Walk-in",referrer:"",createdAt:"2026-08-01"},
+  {id:5,parentName:"Chị Thảo",studentName:"Quang Minh",phone:"0945678901",email:"thao@gmail.com",course:"proplus_1",source:"Zalo",status:"paid",notes:"Đã đóng full",referrer:"",createdAt:"2026-07-28",assignedClass:"PP-01"},
+  {id:6,parentName:"Anh Dũng",studentName:"Thanh Tùng",phone:"0956789012",email:"",course:"up_1",source:"Walk-in",status:"paid",notes:"Walk-in",referrer:"",createdAt:"2026-08-01",assignedClass:"CU-01"},
   {id:7,parentName:"Chị Lan",studentName:"Phương Anh",phone:"0967890123",email:"lan@gmail.com",course:"start_1",source:"Facebook Ads",status:"new",notes:"Xa nhà",referrer:"",createdAt:"2026-07-20"},
   {id:8,parentName:"Anh Hải",studentName:"Đức Anh",phone:"0978901234",email:"hai@gmail.com",course:"pro_2",source:"Giới thiệu",status:"unreachable",notes:"Đang cân nhắc",referrer:"Quang Minh",createdAt:"2026-08-12"},
 ];
@@ -76,18 +76,31 @@ const TD=({children,style:s})=><td style={{padding:"10px 12px",fontSize:"13px",c
 
 const Logo=({w=120})=><svg width={w} height={w*0.3} viewBox="0 0 260 80" xmlns="http://www.w3.org/2000/svg"><path d="M5 8 L32 72 L40 72 L22 28 L36 28 L36 8 L26 8 L26 22 L18 8 Z" fill="#00A79D"/><path d="M26 8 L26 22 L36 22 L36 8 Z" fill="#EF4136"/><path d="M30 12 L44 12 L44 8 L36 8 L36 22 L30 22 Z" fill="#EF4136"/><path d="M30 16 L42 16 L42 20 L30 20 Z" fill="#EF4136"/><text x="48" y="62" fontFamily="'Glory',sans-serif" fontSize="58" fontWeight="700" fill="#00A79D" letterSpacing="1">orge</text></svg>;
 
+// --- PERSIST HELPERS ---
+const load=(key,fallback)=>{try{const d=localStorage.getItem("vf_"+key);return d?JSON.parse(d):fallback}catch{return fallback}};
+const save=(key,val)=>{try{localStorage.setItem("vf_"+key,JSON.stringify(val))}catch{}};
+
 export default function VforgeApp(){
-  const[user,setUser]=useState(null);
-  const[accounts,setAccounts]=useState(ACCOUNTS);
+  const[user,setUser]=useState(()=>load("user",null));
+  const[accounts,setAccounts]=useState(()=>load("accounts",ACCOUNTS));
   const[tab,setTab]=useState("dashboard");
-  const[leads,setLeads]=useState(I_LEADS);
-  const[students,setStudents]=useState(I_STU);
-  const[classes,setClasses]=useState(I_CLS);
-  const[attendance,setAttendance]=useState(I_ATT);
+  const[leads,setLeads]=useState(()=>load("leads",I_LEADS));
+  const[students,setStudents]=useState(()=>load("students",I_STU));
+  const[classes,setClasses]=useState(()=>load("classes",I_CLS));
+  const[attendance,setAttendance]=useState(()=>load("attendance",I_ATT));
   const[modal,setModal]=useState(null);
   const[search,setSearch]=useState("");
   const[leadF,setLeadF]=useState("all");
-  const[adminPw,setAdminPw]=useState("vforge2026");
+  const[adminPw,setAdminPw]=useState(()=>load("adminPw","vforge2026"));
+
+  // Auto-save on change
+  useEffect(()=>save("user",user),[user]);
+  useEffect(()=>save("accounts",accounts),[accounts]);
+  useEffect(()=>save("leads",leads),[leads]);
+  useEffect(()=>save("students",students),[students]);
+  useEffect(()=>save("classes",classes),[classes]);
+  useEffect(()=>save("attendance",attendance),[attendance]);
+  useEffect(()=>save("adminPw",adminPw),[adminPw]);
 
   const can=(t)=>user&&ROLE_CFG[user.role]?.tabs.includes(t);
   const totRev=students.reduce((s,st)=>s+st.amountPaid,0);
@@ -259,6 +272,7 @@ export default function VforgeApp(){
           </div>
         </div>)}
       </div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔄 Dữ liệu</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Reset toàn bộ dữ liệu về mặc định ban đầu (leads, học viên, lớp, chấm công).</p><Btn variant="danger" onClick={()=>{if(confirm("Xác nhận reset toàn bộ dữ liệu?")){setLeads(I_LEADS);setStudents(I_STU);setClasses(I_CLS);setAttendance(I_ATT);setAccounts(ACCOUNTS);setAdminPw("vforge2026");localStorage.clear()}}}>🗑 Reset dữ liệu</Btn></div>
     </div>
   </div>)};
 
