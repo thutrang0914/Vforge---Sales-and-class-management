@@ -13,7 +13,7 @@ const fmtD = (d) => d?new Date(d).toLocaleDateString("vi-VN"):"";
 const tod = () => new Date().toISOString().split("T")[0];
 
 const ACCOUNTS=[{id:1,username:"admin",password:"admin123",name:"Quan",role:"admin"},{id:2,username:"sales",password:"sales123",name:"Thu Trang",role:"sales"},{id:3,username:"reception",password:"letan123",name:"Minh Anh",role:"reception"}];
-const ROLE_CFG={admin:{label:"Admin",color:V.vred,tabs:["dashboard","sales","classes","students","report","settings"]},sales:{label:"Sales",color:V.accent,tabs:["dashboard","sales","classes","students","report"]},reception:{label:"Lễ tân",color:V.purple,tabs:["dashboard","classes","students"]}};
+const ROLE_CFG={admin:{label:"Admin",color:V.vred,tabs:["dashboard","sales","classes","students","report","settings"]},sales:{label:"Sales",color:V.accent,tabs:["dashboard","sales","classes","students"]},reception:{label:"Lễ tân",color:V.purple,tabs:["dashboard","classes","students"]}};
 
 const COURSE_LEVELS=[{id:"start",name:"Code Start",color:V.amber,icon:"🌱"},{id:"up",name:"Code Up",color:V.accent,icon:"🚀"},{id:"pro",name:"Code Pro",color:V.purple,icon:"⚡"},{id:"proplus",name:"Code Pro+",color:V.vred,icon:"🏆"}];
 const COURSES=[
@@ -142,7 +142,7 @@ export default function VforgeApp(){
       <Inp label="Người giới thiệu" value={f.referrer} onChange={e=>setF({...f,referrer:e.target.value})} placeholder="Nếu có"/>
     </div>
     <Inp label="Ghi chú" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
-    <Btn onClick={()=>{if(!f.parentName||!f.studentName)return;setLeads(p=>[...p,{id:Date.now(),status:"new",createdAt:tod(),...f}]);setModal(null)}} style={{width:"100%"}}>💾 Lưu Lead</Btn>
+    <Btn onClick={()=>{if(!f.parentName||!f.studentName)return;if(f.phone&&leads.find(l=>l.phone===f.phone)){if(!confirm(`⚠ SĐT ${f.phone} đã tồn tại (${leads.find(l=>l.phone===f.phone).parentName} - ${leads.find(l=>l.phone===f.phone).studentName}). Vẫn thêm?`))return};setLeads(p=>[...p,{id:Date.now(),status:"new",createdAt:tod(),...f}]);setModal(null)}} style={{width:"100%"}}>💾 Lưu Lead</Btn>
   </Modal>)};
 
   // ENROLL (auto-assign + password)
