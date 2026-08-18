@@ -130,19 +130,29 @@ export default function VforgeApp(){
     return<Login/>}
 
   // ADD LEAD
-  const AddLead=()=>{const[f,setF]=useState({parentName:"",studentName:"",phone:"",email:"",course:COURSES[0].id,source:LEAD_SRC[0],notes:"",referrer:""});
+  const AddLead=()=>{const[f,setF]=useState({parentName:"",studentName:"",phone:"",email:"",course:COURSES[0].id,source:LEAD_SRC[0],notes:"",referrer:"",createdAt:tod()});
+  const[err,setErr]=useState("");const[dupWarn,setDupWarn]=useState(null);
+  const checkDup=(ph)=>{if(!ph)return null;return leads.find(l=>l.phone===ph)};
+  const doSave=()=>{
+    if(!f.parentName||!f.studentName||!f.phone){setErr("Vui lòng điền đầy đủ: Tên PH, Tên HV, SĐT");return}
+    const dup=checkDup(f.phone);
+    if(dup&&!dupWarn){setDupWarn(dup);return}
+    setLeads(p=>[...p,{id:Date.now(),status:"new",...f}]);setModal(null)};
   return(<Modal title="➕ Thêm Lead mới" onClose={()=>setModal(null)} wide>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
-      <Inp label="Họ tên phụ huynh" value={f.parentName} onChange={e=>setF({...f,parentName:e.target.value})} placeholder="VD: Chị Hương"/>
-      <Inp label="Họ tên học viên" value={f.studentName} onChange={e=>setF({...f,studentName:e.target.value})}/>
-      <Inp label="Số điện thoại" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})} placeholder="09xxxxxxxx"/>
+      <Inp label="Họ tên phụ huynh *" value={f.parentName} onChange={e=>{setF({...f,parentName:e.target.value});setErr("")}} placeholder="VD: Chị Hương"/>
+      <Inp label="Họ tên học viên *" value={f.studentName} onChange={e=>{setF({...f,studentName:e.target.value});setErr("")}} placeholder="Tên con"/>
+      <Inp label="Số điện thoại *" value={f.phone} onChange={e=>{setF({...f,phone:e.target.value});setErr("");setDupWarn(null)}} placeholder="09xxxxxxxx"/>
       <Inp label="Email" value={f.email} onChange={e=>setF({...f,email:e.target.value})} placeholder="email@gmail.com"/>
       <Sel label="Trình độ" value={f.course} onChange={e=>setF({...f,course:e.target.value})}>{COURSE_LEVELS.map(lv=><optgroup key={lv.id} label={`${lv.icon} ${lv.name}`}>{COURSES.filter(c=>c.level===lv.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</Sel>
-      <Sel label="Nguồn" value={f.source} onChange={e=>setF({...f,source:e.target.value})}>{LEAD_SRC.map(s=><option key={s} value={s}>{s}</option>)}</Sel>
+      <Sel label="Nguồn *" value={f.source} onChange={e=>setF({...f,source:e.target.value})}>{LEAD_SRC.map(s=><option key={s} value={s}>{s}</option>)}</Sel>
+      <Inp label="Ngày nhập lead" type="date" value={f.createdAt} onChange={e=>setF({...f,createdAt:e.target.value})}/>
       <Inp label="Người giới thiệu" value={f.referrer} onChange={e=>setF({...f,referrer:e.target.value})} placeholder="Nếu có"/>
     </div>
     <Inp label="Ghi chú" value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/>
-    <Btn onClick={()=>{if(!f.parentName||!f.studentName)return;if(f.phone&&leads.find(l=>l.phone===f.phone)){if(!confirm(`⚠ SĐT ${f.phone} đã tồn tại (${leads.find(l=>l.phone===f.phone).parentName} - ${leads.find(l=>l.phone===f.phone).studentName}). Vẫn thêm?`))return};setLeads(p=>[...p,{id:Date.now(),status:"new",createdAt:tod(),...f}]);setModal(null)}} style={{width:"100%"}}>💾 Lưu Lead</Btn>
+    {err&&<div style={{background:V.redDim,border:`1px solid ${V.red}33`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.red,fontSize:"13px",fontWeight:600}}>⚠ {err}</div>}
+    {dupWarn&&<div style={{background:V.amberDim,border:`1px solid ${V.amber}33`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.amber,fontSize:"13px"}}><strong>⚠ SĐT đã tồn tại!</strong><div style={{marginTop:"4px"}}>PH: {dupWarn.parentName} · HV: {dupWarn.studentName} · Trạng thái: {LEAD_ST.find(s=>s.id===dupWarn.status)?.label}</div><div style={{marginTop:"8px",display:"flex",gap:"8px"}}><Btn small variant="danger" onClick={()=>{setDupWarn(null);setLeads(p=>[...p,{id:Date.now(),status:"new",createdAt:tod(),...f}]);setModal(null)}}>Vẫn thêm</Btn><Btn small variant="ghost" onClick={()=>setDupWarn(null)}>Hủy</Btn></div></div>}
+    {!dupWarn&&<Btn onClick={doSave} style={{width:"100%"}}>💾 Lưu Lead</Btn>}
   </Modal>)};
 
   // ENROLL (auto-assign + password)
