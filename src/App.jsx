@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 
 const V = {
   bg:"#f7f8fa",surface:"#ffffff",surface2:"#f0f2f5",border:"#e0e4ea",border2:"#d0d5dd",
@@ -11,8 +11,16 @@ const V = {
 const fmt = (n) => n==null?"0đ":new Intl.NumberFormat("vi-VN").format(n)+"đ";
 const fmtD = (d) => d?new Date(d).toLocaleDateString("vi-VN"):"";
 const tod = () => new Date().toISOString().split("T")[0];
+const now = () => new Date().toISOString();
 
-const ACCOUNTS=[{id:1,username:"admin",password:"admin123",name:"Quan",role:"admin"},{id:2,username:"sales",password:"sales123",name:"Thu Trang",role:"sales"},{id:3,username:"reception",password:"letan123",name:"Minh Anh",role:"reception"}];
+// --- SECURITY HELPERS ---
+const hash=(s)=>{let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return"h_"+Math.abs(h).toString(36)};
+const sanitize=(s)=>typeof s==="string"?s.replace(/<[^>]*>/g,"").trim():"";
+const validPhone=(p)=>/^0\d{9}$/.test(p);
+const validEmail=(e)=>!e||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const SESSION_TIMEOUT=30*60*1000; // 30 phút
+
+const ACCOUNTS=[{id:1,username:"admin",password:hash("Vforge@2026"),name:"Quan",role:"admin"},{id:2,username:"sales",password:hash("Sales@2026"),name:"Thu Trang",role:"sales"},{id:3,username:"reception",password:hash("Letan@2026"),name:"Minh Anh",role:"reception"}];
 const ROLE_CFG={admin:{label:"Admin",color:V.vred,tabs:["dashboard","sales","classes","students","report","settings"]},sales:{label:"Sales",color:V.accent,tabs:["dashboard","sales","classes","students"]},reception:{label:"Lễ tân",color:V.purple,tabs:["dashboard","classes","students"]}};
 
 const COURSE_LEVELS=[{id:"start",name:"Code Start",color:V.amber,icon:"🌱"},{id:"up",name:"Code Up",color:V.accent,icon:"🚀"},{id:"pro",name:"Code Pro",color:V.purple,icon:"⚡"},{id:"proplus",name:"Code Pro+",color:V.vred,icon:"🏆"}];
@@ -92,7 +100,16 @@ export default function VforgeApp(){
   const[modal,setModal]=useState(null);
   const[search,setSearch]=useState("");
   const[leadF,setLeadF]=useState("all");
-  const[adminPw,setAdminPw]=useState(()=>load("adminPw","vforge2026"));
+  const[adminPw,setAdminPw]=useState(()=>load("adminPw",hash("vforge2026")));
+  const[auditLog,setAuditLog]=useState(()=>load("audit",[]));
+
+  // Session timeout
+  const lastActivity=useRef(Date.now());
+  const checkTimeout=useCallback(()=>{if(user&&Date.now()-lastActivity.current>SESSION_TIMEOUT){setUser(null);save("user",null);alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.")}},[ user]);
+  useEffect(()=>{const t=setInterval(checkTimeout,60000);const reset=()=>{lastActivity.current=Date.now()};window.addEventListener("mousemove",reset);window.addEventListener("keydown",reset);return()=>{clearInterval(t);window.removeEventListener("mousemove",reset);window.removeEventListener("keydown",reset)}},[checkTimeout]);
+
+  // Audit helper
+  const log=(action,detail)=>{const entry={id:Date.now(),user:user?.name||"System",role:user?.role||"",action,detail,time:now()};setAuditLog(p=>{const n=[entry,...p].slice(0,200);return n})};
 
   // Auto-save on change
   useEffect(()=>save("user",user),[user]);
@@ -102,6 +119,7 @@ export default function VforgeApp(){
   useEffect(()=>save("classes",classes),[classes]);
   useEffect(()=>save("attendance",attendance),[attendance]);
   useEffect(()=>save("adminPw",adminPw),[adminPw]);
+  useEffect(()=>save("audit",auditLog),[auditLog]);
 
   const can=(t)=>user&&ROLE_CFG[user.role]?.tabs.includes(t);
   const totRev=students.reduce((s,st)=>s+st.amountPaid,0);
@@ -123,10 +141,10 @@ export default function VforgeApp(){
       <Btn onClick={doLogin} style={{width:"100%",padding:"12px",fontSize:"15px"}}>Đăng nhập</Btn>
       <div style={{marginTop:"20px",padding:"14px",background:V.surface2,borderRadius:"10px",fontSize:"12px",color:V.textDim}}>
         <div style={{fontWeight:700,marginBottom:"6px"}}>Tài khoản mẫu:</div>
-        <div>Admin: <b>admin</b> / admin123</div><div>Sales: <b>sales</b> / sales123</div><div>Lễ tân: <b>reception</b> / letan123</div>
+        <div>Admin: <b>admin</b> / Vforge@2026</div><div>Sales: <b>sales</b> / Sales@2026</div><div>Lễ tân: <b>reception</b> / Letan@2026</div>
       </div>
     </div></div>);
-    function doLogin(){const f=accounts.find(a=>a.username===u&&a.password===p);if(f){setUser(f);setTab("dashboard")}else setE("Sai tên đăng nhập hoặc mật khẩu")}};
+    function doLogin(){const f=accounts.find(a=>a.username===u&&a.password===hash(p));if(f){setUser(f);setTab("dashboard");lastActivity.current=Date.now();const entry={id:Date.now(),user:f.name,role:f.role,action:"Đăng nhập",detail:"",time:now()};setAuditLog(prev=>[entry,...prev].slice(0,200))}else setE("Sai tên đăng nhập hoặc mật khẩu")}};
     return<Login/>}
 
   // ADD LEAD
@@ -134,10 +152,14 @@ export default function VforgeApp(){
   const[err,setErr]=useState("");const[dupWarn,setDupWarn]=useState(null);
   const checkDup=(ph)=>{if(!ph)return null;return leads.find(l=>l.phone===ph)};
   const doSave=()=>{
-    if(!f.parentName||!f.studentName||!f.phone){setErr("Vui lòng điền đầy đủ: Tên PH, Tên HV, SĐT");return}
-    const dup=checkDup(f.phone);
+    const pn=sanitize(f.parentName),sn=sanitize(f.studentName),ph=sanitize(f.phone),em=sanitize(f.email);
+    if(!pn||!sn||!ph){setErr("Vui lòng điền đầy đủ: Tên PH, Tên HV, SĐT");return}
+    if(!validPhone(ph)){setErr("SĐT không hợp lệ (cần 10 số, bắt đầu bằng 0)");return}
+    if(em&&!validEmail(em)){setErr("Email không hợp lệ");return}
+    const dup=checkDup(ph);
     if(dup&&!dupWarn){setDupWarn(dup);return}
-    setLeads(p=>[...p,{id:Date.now(),status:"new",...f}]);setModal(null)};
+    const cleaned={...f,parentName:pn,studentName:sn,phone:ph,email:em,notes:sanitize(f.notes),referrer:sanitize(f.referrer)};
+    setLeads(p=>[...p,{id:Date.now(),status:"new",...cleaned}]);log("Thêm lead",`${sn} (${pn}) - ${ph}`);setModal(null)};
   return(<Modal title="➕ Thêm Lead mới" onClose={()=>setModal(null)} wide>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
       <Inp label="Họ tên phụ huynh *" value={f.parentName} onChange={e=>{setF({...f,parentName:e.target.value});setErr("")}} placeholder="VD: Chị Hương"/>
@@ -168,7 +190,7 @@ export default function VforgeApp(){
     {pe&&<div style={{color:V.red,fontSize:"12px",marginBottom:"10px"}}>{pe}</div>}
     {pv&&<div style={{color:V.mint,fontSize:"12px",marginBottom:"10px"}}>✅ Đã xác nhận</div>}</>}
     <Btn onClick={()=>{if(!ok)return;setStudents(p=>[...p,{id:Date.now(),name:lead.studentName,parentName:lead.parentName,parentPhone:lead.phone,course:lead.course,classId:sel,enrollDate:tod(),paymentStatus:"pending",amountPaid:0,totalFee:co?.fee||0,note:""}]);setLeads(p=>p.map(l=>l.id===lead.id?{...l,status:"enrolled"}:l));setModal(null)}} style={{width:"100%",opacity:ok?1:0.5,cursor:ok?"pointer":"not-allowed"}}>✅ Xác nhận đăng ký</Btn>
-  </Modal>);function vfy(){if(pw===adminPw){setPv(true);setPe("")}else setPe("Sai mật khẩu")}};
+  </Modal>);function vfy(){if(hash(pw)===adminPw){setPv(true);setPe("")}else setPe("Sai mật khẩu")}};
 
   // ADD CLASS
   const AddCls=()=>{const[f,setF]=useState({course:COURSES[0].id,name:"",instructor:INST[0].name,day:"T7",timeStart:"09:00",timeEnd:"11:00",maxStudents:8,startDate:tod()});
@@ -243,7 +265,7 @@ export default function VforgeApp(){
         <div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Khai giảng</div><div style={{color:V.textMid,fontSize:"13px",fontWeight:600,marginTop:"2px"}}>{fmtD(c.startDate)}</div></div>
       </div>
       {cst.length>0&&<div style={{borderTop:`1px solid ${V.border}`,paddingTop:"10px"}}><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700,marginBottom:"6px"}}>Học viên</div><div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>{cst.map(st=><span key={st.id} style={{padding:"3px 10px",background:V.bg,borderRadius:"6px",fontSize:"12px",color:V.textMid,fontWeight:500}}>{st.name}</span>)}</div></div>}
-      {user.role==="admin"&&cst.length===0&&<div style={{borderTop:`1px solid ${V.border}`,paddingTop:"10px",textAlign:"right"}}><Btn small variant="danger" onClick={()=>{if(confirm(`Xóa lớp "${c.name}"?`))setClasses(p=>p.filter(x=>x.id!==c.id))}}><Ic.Trash/> Xóa lớp</Btn></div>}
+      {user.role==="admin"&&cst.length===0&&<div style={{borderTop:`1px solid ${V.border}`,paddingTop:"10px",textAlign:"right"}}><Btn small variant="danger" onClick={()=>{if(confirm(`Xóa lớp "${c.name}"?`)){setClasses(p=>p.filter(x=>x.id!==c.id));log("Xóa lớp",c.name)}}}><Ic.Trash/> Xóa lớp</Btn></div>}
     </div></div>})}</div>
     <h3 style={{color:V.accent,fontSize:"15px",fontWeight:700,marginBottom:"14px"}}>👨‍🏫 Giảng viên</h3>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:"12px"}}>{INST.map(i=><div key={i.id} style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"12px",padding:"16px 20px"}}><div style={{color:V.text,fontWeight:700,fontSize:"15px"}}>{i.name}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"2px"}}>{i.role}</div><div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"10px"}}>{i.courses.map(cId=>{const co=COURSES.find(c=>c.id===cId);return<Badge key={cId} color={gCC(co)}>{co?.name}</Badge>})}</div><div style={{marginTop:"10px",color:V.textDim,fontSize:"12px"}}>{classes.filter(c=>c.instructor===i.name).length} lớp · {i.phone}</div></div>)}</div>
@@ -303,7 +325,7 @@ export default function VforgeApp(){
   const[showAdd,setShowAdd]=useState(false);const[nf,setNf]=useState({name:"",username:"",password:"",role:"sales"});const[delConfirm,setDelConfirm]=useState(null);
   return(<div><h2 style={{color:V.text,margin:"0 0 24px",fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>⚙️ <span style={{color:V.accent}}>Cài đặt</span></h2>
     <div style={{maxWidth:"600px"}}>
-      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginBottom:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔐 Mật khẩu chuyển lớp</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Dùng khi Sales muốn chuyển HV sang lớp khác thay vì lớp tự động.</p><Inp label="Mật khẩu" value={np} onChange={e=>{setNp(e.target.value);setSv(false)}}/><Btn onClick={()=>{setAdminPw(np);setSv(true)}}>{sv?"✅ Đã lưu":"💾 Lưu"}</Btn></div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginBottom:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔐 Mật khẩu chuyển lớp</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Dùng khi Sales muốn chuyển HV sang lớp khác thay vì lớp tự động.</p><Inp label="Mật khẩu mới" value={np} onChange={e=>{setNp(e.target.value);setSv(false)}}/><Btn onClick={()=>{if(np.length<6){alert("Mật khẩu tối thiểu 6 ký tự!");return}setAdminPw(hash(np));log("Đổi MK chuyển lớp","");setSv(true)}}>{sv?"✅ Đã lưu":"💾 Lưu"}</Btn></div>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}><h3 style={{color:V.text,margin:0,fontSize:"15px",fontWeight:700}}>👥 Tài khoản hệ thống</h3><Btn small onClick={()=>setShowAdd(!showAdd)}>{showAdd?"✕ Đóng":"+ Tạo TK"}</Btn></div>
         {showAdd&&<div style={{background:V.bg,borderRadius:"10px",padding:"16px",marginBottom:"16px",border:`1px solid ${V.border}`}}>
@@ -313,7 +335,7 @@ export default function VforgeApp(){
             <Inp label="Mật khẩu" value={nf.password} onChange={e=>setNf({...nf,password:e.target.value})} placeholder="Tối thiểu 6 ký tự"/>
             <Sel label="Vai trò" value={nf.role} onChange={e=>setNf({...nf,role:e.target.value})}><option value="admin">Admin</option><option value="sales">Sales</option><option value="reception">Lễ tân</option></Sel>
           </div>
-          <Btn onClick={()=>{if(!nf.name||!nf.username||!nf.password)return;if(accounts.find(a=>a.username===nf.username)){alert("Username đã tồn tại!");return}setAccounts(p=>[...p,{id:Date.now(),...nf}]);setNf({name:"",username:"",password:"",role:"sales"});setShowAdd(false)}} style={{width:"100%"}}>✅ Tạo tài khoản</Btn>
+          <Btn onClick={()=>{if(!nf.name||!nf.username||!nf.password)return;if(nf.password.length<6){alert("Mật khẩu tối thiểu 6 ký tự!");return}if(accounts.find(a=>a.username===nf.username)){alert("Username đã tồn tại!");return}setAccounts(p=>[...p,{id:Date.now(),name:sanitize(nf.name),username:sanitize(nf.username),password:hash(nf.password),role:nf.role}]);log("Tạo tài khoản",`${nf.name} (@${nf.username}) - ${ROLE_CFG[nf.role]?.label}`);setNf({name:"",username:"",password:"",role:"sales"});setShowAdd(false)}} style={{width:"100%"}}>✅ Tạo tài khoản</Btn>
         </div>}
         {accounts.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:`1px solid ${V.border}`}}>
           <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
@@ -326,7 +348,15 @@ export default function VforgeApp(){
           </div>
         </div>)}
       </div>
-      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔄 Dữ liệu</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Reset toàn bộ dữ liệu về mặc định ban đầu (leads, học viên, lớp, chấm công).</p><Btn variant="danger" onClick={()=>{if(confirm("Xác nhận reset toàn bộ dữ liệu?")){setLeads(I_LEADS);setStudents(I_STU);setClasses(I_CLS);setAttendance(I_ATT);setAccounts(ACCOUNTS);setAdminPw("vforge2026");localStorage.clear()}}}>🗑 Reset dữ liệu</Btn></div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔑 Đổi mật khẩu tài khoản</h3>
+        {accounts.map(a=>{const[show,setShow]=useState(false);const[newPw,setNewPw2]=useState("");
+        return<div key={a.id} style={{padding:"10px 0",borderBottom:`1px solid ${V.border}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{display:"flex",alignItems:"center",gap:"8px"}}><Badge color={ROLE_CFG[a.role]?.color}>{ROLE_CFG[a.role]?.label}</Badge><span style={{color:V.text,fontSize:"14px",fontWeight:600}}>{a.name}</span><span style={{color:V.textFaint,fontSize:"12px"}}>@{a.username}</span></div><Btn small variant="ghost" onClick={()=>setShow(!show)}>Đổi MK</Btn></div>
+        {show&&<div style={{display:"flex",gap:"8px",marginTop:"8px"}}><input type="password" value={newPw} onChange={e=>setNewPw2(e.target.value)} placeholder="Mật khẩu mới (6+ ký tự)" style={{flex:1,padding:"8px 12px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.text,fontSize:"13px",outline:"none"}}/><Btn small onClick={()=>{if(newPw.length<6){alert("Tối thiểu 6 ký tự!");return}setAccounts(p=>p.map(x=>x.id===a.id?{...x,password:hash(newPw)}:x));log("Đổi MK",`@${a.username}`);setShow(false);setNewPw2("")}}>Lưu</Btn></div>}</div>})}
+      </div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔄 Dữ liệu</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Reset toàn bộ dữ liệu về mặc định ban đầu.</p><Btn variant="danger" onClick={()=>{if(confirm("Xác nhận reset toàn bộ dữ liệu?")){setLeads(I_LEADS);setStudents(I_STU);setClasses(I_CLS);setAttendance(I_ATT);setAccounts(ACCOUNTS);setAdminPw(hash("vforge2026"));setAuditLog([]);localStorage.clear();log("Reset data","")}}}>🗑 Reset dữ liệu</Btn></div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}><h3 style={{color:V.text,margin:0,fontSize:"15px",fontWeight:700}}>📋 Nhật ký hoạt động</h3><span style={{color:V.textFaint,fontSize:"12px"}}>{auditLog.length} bản ghi</span></div>
+        <div style={{maxHeight:"300px",overflow:"auto"}}>{auditLog.slice(0,50).map(e=><div key={e.id} style={{padding:"8px 0",borderBottom:`1px solid ${V.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><span style={{color:V.text,fontSize:"13px",fontWeight:600}}>{e.action}</span>{e.detail&&<span style={{color:V.textDim,fontSize:"12px",marginLeft:"8px"}}>{e.detail}</span>}</div><div style={{textAlign:"right"}}><div style={{color:V.textFaint,fontSize:"11px"}}>{e.user} <Badge color={ROLE_CFG[e.role]?.color||V.textDim}>{ROLE_CFG[e.role]?.label||e.role}</Badge></div><div style={{color:V.textGhost,fontSize:"10px"}}>{new Date(e.time).toLocaleString("vi-VN")}</div></div></div>)}{auditLog.length===0&&<div style={{color:V.textFaint,textAlign:"center",padding:"20px"}}>Chưa có hoạt động</div>}</div>
+      </div>
     </div>
   </div>)};
 
@@ -340,7 +370,7 @@ export default function VforgeApp(){
     <div style={{background:V.surface,borderBottom:`1px solid ${V.border}`,position:"sticky",top:0,zIndex:100}}><div style={{maxWidth:"1200px",margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
       <div style={{display:"flex",alignItems:"center",gap:"24px"}}><div style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 0"}}><Logo/><div style={{color:V.textFaint,fontSize:"9px",letterSpacing:"2.5px",textTransform:"uppercase",fontFamily:"'Glory',sans-serif",marginTop:"2px"}}>WIRE THE CORE</div></div>
       <nav style={{display:"flex",gap:"2px"}}>{visT.map(t=><button key={t.id} onClick={()=>{setTab(t.id);setSearch("");setLeadF("all")}} style={{display:"flex",alignItems:"center",gap:"6px",padding:"14px 16px",border:"none",cursor:"pointer",fontSize:"13px",fontWeight:600,background:"transparent",color:tab===t.id?V.accent:V.textDim,borderBottom:`2px solid ${tab===t.id?V.accent:"transparent"}`}}>{t.icon}<span>{t.label}</span></button>)}</nav></div>
-      <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>setUser(null)}><Ic.Logout/></Btn></div>
+      <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>{log("Đăng xuất","");setUser(null)}}><Ic.Logout/></Btn></div>
     </div></div>
     <div style={{maxWidth:"1200px",margin:"0 auto",padding:"24px"}}>{can(tab)?pg[tab]:<div style={{textAlign:"center",padding:"60px",color:V.textFaint}}>Không có quyền truy cập</div>}</div>
     {modal==="add_lead"&&<AddLead/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}
