@@ -254,6 +254,27 @@ export default function VforgeApp(){
     return null; // không có lớp đỏ/vàng phù hợp
   };
 
+  // AUTO-SYNC: đảm bảo mọi lead đã đóng HP (paid/renew) đều có student record + lớp thật,
+  // kể cả khi lúc đổi trạng thái chưa có lớp phù hợp và Admin tạo lớp sau đó.
+  useEffect(()=>{
+    const toSync=leads.filter(l=>(l.status==="paid"||l.status==="renew")&&!students.find(s=>s.name===l.studentName&&s.course===l.course));
+    if(toSync.length===0)return;
+    const newStudents=[];
+    const leadUpdates={};
+    toSync.forEach(l=>{
+      const b=bestCls(l.course);
+      if(b){
+        const co=COURSES.find(c=>c.id===l.course);
+        newStudents.push({id:Date.now()+Math.random(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:"Auto-sync"});
+        leadUpdates[l.id]=b.id;
+      }
+    });
+    if(newStudents.length>0){
+      setStudents(p=>[...p,...newStudents]);
+      setLeads(p=>p.map(x=>leadUpdates[x.id]?{...x,assignedClass:leadUpdates[x.id]}:x));
+    }
+  },[leads,classes]);
+
   // LOGIN
   if(!user){
     const Login=()=>{const[u,setU]=useState("");const[p,setP]=useState("");const[e,setE]=useState("");
@@ -420,8 +441,8 @@ export default function VforgeApp(){
       <TD><select value={l.source} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,source:e.target.value}:x))} style={{padding:"4px 8px",background:V.surface2,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.textMid,fontSize:"11px",fontWeight:600,outline:"none",cursor:"pointer"}}>{LEAD_SRC.map(s=><option key={s} value={s}>{s}</option>)}</select></TD>
       <TD><select value={l.format||"offline"} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,format:e.target.value}:x))} style={{padding:"4px 8px",background:`${LEARN_FORMAT.find(f=>f.id===(l.format||"offline"))?.color}18`,border:`1px solid ${LEARN_FORMAT.find(f=>f.id===(l.format||"offline"))?.color}44`,borderRadius:"6px",color:LEARN_FORMAT.find(f=>f.id===(l.format||"offline"))?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEARN_FORMAT.map(lf=><option key={lf.id} value={lf.id}>{lf.label}</option>)}</select></TD>
       <TD><select value={l.course} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,course:e.target.value}:x))} style={{padding:"4px 8px",background:`${gCC(co)}18`,border:`1px solid ${gCC(co)}44`,borderRadius:"6px",color:gCC(co),fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{COURSE_LEVELS.map(lv=><optgroup key={lv.id} label={`${lv.icon} ${lv.name}`}>{COURSES.filter(c=>c.level===lv.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</select></TD>
-      <TD>{isPaid?(()=>{const stu=students.find(s=>s.name===l.studentName&&s.course===l.course);const assignedCls=classes.find(c=>c.id===(stu?.classId||l.assignedClass));if(user.role==="admin"){return ac.length>0?<select value={stu?.classId||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!stu){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:""}])}else{setStudents(p=>p.map(s=>s.id===stu.id?{...s,classId:cid}:s))}log("Đổi lớp (Admin)",`${l.studentName} → ${classes.find(c=>c.id===cid)?.name}`)}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.textFaint,fontSize:"11px"}}>Chưa có lớp</span>}
-      return assignedCls?<Badge color={V.mint} bg={V.mintDim}>{assignedCls.name}</Badge>:(ac.length>0?<span style={{color:V.textFaint,fontSize:"11px"}}>Chờ auto-assign</span>:<span style={{color:V.textFaint,fontSize:"11px"}}>Chưa có lớp</span>)})():<span style={{color:V.textGhost,fontSize:"11px"}}>Cần đóng HP</span>}</TD>
+      <TD>{isPaid?(()=>{const stu=students.find(s=>s.name===l.studentName&&s.course===l.course);const assignedCls=classes.find(c=>c.id===(stu?.classId||l.assignedClass));if(user.role==="admin"){return ac.length>0?<select value={stu?.classId||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!stu){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:""}])}else{setStudents(p=>p.map(s=>s.id===stu.id?{...s,classId:cid}:s))}log("Đổi lớp (Admin)",`${l.studentName} → ${classes.find(c=>c.id===cid)?.name}`)}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>}
+      return assignedCls?<Badge color={V.mint} bg={V.mintDim}>{assignedCls.name}</Badge>:(ac.length>0?<span style={{color:V.textFaint,fontSize:"11px"}}>Đang xử lý...</span>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>)})():<span style={{color:V.textGhost,fontSize:"11px"}}>Cần đóng HP</span>}</TD>
       <TD>{!isPaid&&l.status!=="renew"?<div style={{display:"flex",flexDirection:"column",gap:"4px"}}><select value={l.lostReason||""} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,lostReason:e.target.value}:x))} style={{padding:"4px 8px",background:V.surface2,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.textMid,fontSize:"11px",outline:"none",cursor:"pointer"}}><option value="">-- Chọn --</option>{LOST_REASONS.map(r=><option key={r} value={r}>{r}</option>)}</select>{l.lostReason==="Khác"&&<input value={l.lostNote||""} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,lostNote:e.target.value}:x))} placeholder="Ghi chú..." style={{padding:"4px 8px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.text,fontSize:"11px",outline:"none",width:"100%",boxSizing:"border-box"}}/>}</div>:<span style={{color:V.textGhost,fontSize:"11px"}}>—</span>}</TD>
       <TD style={{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:"12px",color:V.textDim}}>{l.notes||"—"}</TD>
       <TD style={{color:l.referrer?V.accent:V.textGhost,fontWeight:l.referrer?600:400,fontSize:"12px"}}>{l.referrer||"—"}</TD>
