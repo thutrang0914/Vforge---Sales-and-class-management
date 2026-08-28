@@ -205,26 +205,37 @@ export default function VforgeApp(){
   </Modal>);function vfy(){if(hash(pw)===adminPw){setPv(true);setPe("")}else setPe("Sai mật khẩu")}};
 
   // ADD CLASS
-  const AddCls=()=>{const[f,setF]=useState({level:COURSE_LEVELS[0].id,course:COURSES.find(c=>c.level===COURSE_LEVELS[0].id).id,name:"",instructor:INST[0].name,day:"T7",timeStart:"09:00",timeEnd:"11:00",maxStudents:8,startDate:tod()});
+  const AddCls=({editClass})=>{const existingStudentCount=editClass?students.filter(s=>s.classId===editClass.id).length:0;
+  const parseSchedule=(c)=>{const s=c?.schedule?.[0];if(!s)return{day:"T7",timeStart:"09:00",timeEnd:"11:00"};const[ts,te]=(s.time||"09:00-11:00").split("-");return{day:s.day,timeStart:ts,timeEnd:te}};
+  const initF=editClass?{level:COURSES.find(c=>c.id===editClass.course)?.level||COURSE_LEVELS[0].id,course:editClass.course,name:editClass.name,instructor:editClass.instructor,...parseSchedule(editClass),maxStudents:editClass.maxStudents,startDate:editClass.startDate}:{level:COURSE_LEVELS[0].id,course:COURSES.find(c=>c.level===COURSE_LEVELS[0].id).id,name:"",instructor:INST[0].name,day:"T7",timeStart:"09:00",timeEnd:"11:00",maxStudents:8,startDate:tod()};
+  const[f,setF]=useState(initF);const[err,setErr]=useState("");
   const co=COURSES.find(c=>c.id===f.course);const lvl=COURSE_LEVELS.find(l=>l.id===f.level);
   const coursesInLevel=COURSES.filter(c=>c.level===f.level);
-  const autoName=()=>{const existing=classes.filter(c=>c.course===f.course);const letter=String.fromCharCode(65+existing.length);return`${co?.name} - Lớp ${letter}`};
-  return(<Modal title="📚 Tạo lớp học mới" onClose={()=>setModal(null)} wide>
+  const autoName=()=>{const existing=classes.filter(c=>c.course===f.course&&c.id!==editClass?.id);const letter=String.fromCharCode(65+existing.length);return`${co?.name} - Lớp ${letter}`};
+  const doSubmit=()=>{
+    if(f.maxStudents<existingStudentCount){setErr(`Sĩ số tối đa không thể nhỏ hơn ${existingStudentCount} (số HV hiện có trong lớp)`);return}
+    const nm=f.name||autoName();
+    if(editClass){setClasses(p=>p.map(c=>c.id===editClass.id?{...c,name:nm,course:f.course,instructor:f.instructor,schedule:[{day:f.day,time:`${f.timeStart}-${f.timeEnd}`}],maxStudents:f.maxStudents,startDate:f.startDate}:c));log("Sửa lớp",nm)}
+    else{const id=`CLS-${Date.now()}`;setClasses(p=>[...p,{id,name:nm,course:f.course,instructor:f.instructor,schedule:[{day:f.day,time:`${f.timeStart}-${f.timeEnd}`}],maxStudents:f.maxStudents,startDate:f.startDate,status:"upcoming"}]);log("Tạo lớp",nm)}
+    setModal(null)};
+  return(<Modal title={editClass?`✏️ Sửa lớp — ${editClass.name}`:"📚 Tạo lớp học mới"} onClose={()=>setModal(null)} wide>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
       <Sel label="Level" value={f.level} onChange={e=>{const newLevel=e.target.value;const firstCourse=COURSES.find(c=>c.level===newLevel);setF({...f,level:newLevel,course:firstCourse.id,name:""})}}>{COURSE_LEVELS.map(lv=><option key={lv.id} value={lv.id}>{lv.icon} {lv.name}</option>)}</Sel>
       <Sel label="Khóa" value={f.course} onChange={e=>setF({...f,course:e.target.value,name:""})}>{coursesInLevel.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel>
-      <Inp label="Sĩ số lớp tối đa" type="number" value={f.maxStudents} onChange={e=>setF({...f,maxStudents:Number(e.target.value)})}/>
+      <Inp label="Sĩ số lớp tối đa" type="number" value={f.maxStudents} onChange={e=>{setF({...f,maxStudents:Number(e.target.value)});setErr("")}}/>
       <Inp label="Tên lớp" value={f.name||autoName()} onChange={e=>setF({...f,name:e.target.value})}/>
       <Sel label="Ngày học (Thời gian học)" value={f.day} onChange={e=>setF({...f,day:e.target.value})}><option value="T2">Thứ 2</option><option value="T3">Thứ 3</option><option value="T4">Thứ 4</option><option value="T5">Thứ 5</option><option value="T6">Thứ 6</option><option value="T7">Thứ 7</option><option value="CN">Chủ nhật</option></Sel>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 8px"}}><Inp label="Giờ bắt đầu" type="time" value={f.timeStart} onChange={e=>setF({...f,timeStart:e.target.value})}/><Inp label="Giờ kết thúc" type="time" value={f.timeEnd} onChange={e=>setF({...f,timeEnd:e.target.value})}/></div>
       <Sel label="Giáo viên" value={f.instructor} onChange={e=>setF({...f,instructor:e.target.value})}>{INST.map(i=><option key={i.id} value={i.name}>{i.name} - {i.role}</option>)}</Sel>
       <Inp label="Ngày khai giảng" type="date" value={f.startDate} onChange={e=>setF({...f,startDate:e.target.value})}/>
     </div>
+    {editClass&&existingStudentCount>0&&<div style={{background:V.amberDim,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.amber,fontSize:"12px"}}>⚠ Lớp đang có {existingStudentCount} học viên — sĩ số tối đa không thể thấp hơn số này.</div>}
+    {err&&<div style={{background:V.redDim,border:`1px solid ${V.red}33`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.red,fontSize:"13px",fontWeight:600}}>⚠ {err}</div>}
     <div style={{background:V.accentDim,borderRadius:"10px",padding:"14px 16px",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
       <div><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{f.name||autoName()}</div><div style={{color:V.textDim,fontSize:"12px",marginTop:"2px"}}>{co?.name} · {f.day} {f.timeStart}-{f.timeEnd} · GV: {f.instructor} · Tối đa {f.maxStudents} HV</div></div>
       <Badge color={lvl?.color}>{lvl?.icon} {lvl?.name}</Badge>
     </div>
-    <Btn onClick={()=>{const nm=f.name||autoName();const id=`CLS-${Date.now()}`;setClasses(p=>[...p,{id,name:nm,course:f.course,instructor:f.instructor,schedule:[{day:f.day,time:`${f.timeStart}-${f.timeEnd}`}],maxStudents:f.maxStudents,startDate:f.startDate,status:"upcoming"}]);log("Tạo lớp",nm);setModal(null)}} style={{width:"100%"}}>✅ Tạo lớp</Btn>
+    <Btn onClick={doSubmit} style={{width:"100%"}}>{editClass?"💾 Lưu thay đổi":"✅ Tạo lớp"}</Btn>
   </Modal>)};
 
   // ATTENDANCE
@@ -303,7 +314,7 @@ export default function VforgeApp(){
       </div>
       <div style={{borderTop:`1px solid ${V.border}`,paddingTop:"10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{color:V.accent,fontSize:"12px",fontWeight:600}}>👁 Xem {sc} học viên</span>
-        {user.role==="admin"&&cst.length===0&&<Btn small variant="danger" onClick={e=>{e.stopPropagation();if(confirm(`Xóa lớp "${c.name}"?`)){setClasses(p=>p.filter(x=>x.id!==c.id));log("Xóa lớp",c.name)}}}><Ic.Trash/> Xóa</Btn>}
+        {user.role==="admin"&&<div style={{display:"flex",gap:"6px"}}><Btn small variant="secondary" onClick={e=>{e.stopPropagation();setModal({type:"edit_class",classData:c})}}>✏️ Sửa</Btn>{cst.length===0&&<Btn small variant="danger" onClick={e=>{e.stopPropagation();if(confirm(`Xóa lớp "${c.name}"?`)){setClasses(p=>p.filter(x=>x.id!==c.id));log("Xóa lớp",c.name)}}}><Ic.Trash/></Btn>}</div>}
       </div>
     </div></div>})}</div>
     <h3 style={{color:V.accent,fontSize:"15px",fontWeight:700,marginBottom:"14px"}}>👨‍🏫 Giảng viên</h3>
@@ -418,6 +429,6 @@ export default function VforgeApp(){
       <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>{log("Đăng xuất","");setUser(null)}}><Ic.Logout/></Btn></div>
     </div></div>
     <div style={{maxWidth:"1200px",margin:"0 auto",padding:"24px"}}>{can(tab)?pg[tab]:<div style={{textAlign:"center",padding:"60px",color:V.textFaint}}>Không có quyền truy cập</div>}</div>
-    {modal==="add_lead"&&<AddLead/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
+    {modal==="add_lead"&&<AddLead/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
   </div>);
 }
