@@ -5,7 +5,7 @@ const V = {
   accent:"#00A79D",accentDim:"rgba(0,167,157,0.08)",vred:"#EF4136",vredDim:"rgba(239,65,54,0.08)",
   mint:"#059669",mintDim:"rgba(5,150,105,0.08)",amber:"#d97706",amberDim:"rgba(217,119,6,0.08)",
   red:"#EF4136",redDim:"rgba(239,65,54,0.08)",purple:"#7c3aed",purpleDim:"rgba(124,58,237,0.08)",
-  cyan:"#00A79D",cyanDim:"rgba(0,167,157,0.08)",
+  cyan:"#00A79D",cyanDim:"rgba(0,167,157,0.08)",blue:"#2563eb",blueDim:"rgba(37,99,235,0.08)",
   text:"#1a1a2e",textMid:"#3d4558",textDim:"#6b7280",textFaint:"#9ca3af",textGhost:"#d1d5db",
 };
 const fmt = (n) => n==null?"0đ":new Intl.NumberFormat("vi-VN").format(n)+"đ";
@@ -35,7 +35,7 @@ const getFillTag=(count,max)=>{const pct=max>0?(count/max)*100:0;if(pct>=80)retu
 const LOST_REASONS=["Học phí","Xa nhà","Lịch không phù hợp","Chưa sẵn sàng","Chọn nơi khác","Khác"];
 const LEAD_SRC=["Facebook Ads","Zalo","Giới thiệu","Website","Event/Workshop","Walk-in","Khác"];
 const LEARN_FORMAT=[{id:"offline",label:"Offline",color:V.accent},{id:"online",label:"Online",color:V.purple}];
-const LEAD_ST=[{id:"new",label:"Mới",color:V.accent,bg:V.accentDim},{id:"unreachable",label:"Chưa liên hệ được",color:V.amber,bg:V.amberDim},{id:"enrolled",label:"Đã đăng ký",color:V.purple,bg:V.purpleDim},{id:"paid",label:"Đóng học phí",color:V.mint,bg:V.mintDim},{id:"negotiating",label:"Đang thương lượng",color:V.cyan,bg:V.cyanDim},{id:"renew",label:"ĐK khóa tiếp",color:V.vred,bg:V.vredDim}];
+const LEAD_ST=[{id:"new",label:"Mới",color:V.accent,bg:V.accentDim},{id:"unreachable",label:"Chưa liên hệ được",color:V.amber,bg:V.amberDim},{id:"testing",label:"Làm test đầu vào",color:V.blue,bg:V.blueDim},{id:"enrolled",label:"Đã đăng ký",color:V.purple,bg:V.purpleDim},{id:"paid",label:"Đóng học phí",color:V.mint,bg:V.mintDim},{id:"negotiating",label:"Đang thương lượng",color:V.cyan,bg:V.cyanDim},{id:"renew",label:"ĐK khóa tiếp",color:V.vred,bg:V.vredDim}];
 const CLASS_ST=[{id:"upcoming",label:"Sắp diễn ra",color:V.amber},{id:"active",label:"Đang diễn ra",color:V.mint},{id:"paused",label:"Tạm dừng",color:V.purple},{id:"completed",label:"Đã kết thúc",color:V.textDim},{id:"cancelled",label:"Đã hủy",color:V.red}];
 const PAY_ST=[{id:"pending",label:"Chờ TT",color:V.amber},{id:"partial",label:"Đặt cọc",color:V.cyan},{id:"paid",label:"Đã TT",color:V.mint},{id:"overdue",label:"Quá hạn",color:V.red}];
 
