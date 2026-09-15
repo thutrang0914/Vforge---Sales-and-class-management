@@ -35,7 +35,7 @@ const getFillTag=(count,max)=>{const pct=max>0?(count/max)*100:0;if(pct>=80)retu
 const LOST_REASONS=["Học phí","Xa nhà","Lịch không phù hợp","Chưa sẵn sàng","Chọn nơi khác","Khác"];
 const LEAD_SRC=["Facebook Ads","Zalo","Giới thiệu","Website","Event/Workshop","Walk-in","Khác"];
 const LEARN_FORMAT=[{id:"offline",label:"Offline",color:V.accent},{id:"online",label:"Online",color:V.purple}];
-const LEAD_ST=[{id:"new",label:"Mới",color:V.accent,bg:V.accentDim},{id:"unreachable",label:"Chưa liên hệ được",color:V.amber,bg:V.amberDim},{id:"testing",label:"Làm test đầu vào",color:V.blue,bg:V.blueDim},{id:"enrolled",label:"Đã đăng ký",color:V.purple,bg:V.purpleDim},{id:"paid",label:"Đóng học phí",color:V.mint,bg:V.mintDim},{id:"negotiating",label:"Đang thương lượng",color:V.cyan,bg:V.cyanDim},{id:"renew",label:"ĐK khóa tiếp",color:V.vred,bg:V.vredDim}];
+const LEAD_ST=[{id:"new",label:"Mới",color:V.accent,bg:V.accentDim},{id:"unreachable",label:"Chưa liên hệ được",color:V.amber,bg:V.amberDim},{id:"testing",label:"Làm test đầu vào",color:V.blue,bg:V.blueDim},{id:"no_test",label:"Không làm test",color:V.textDim,bg:V.surface2},{id:"enrolled",label:"Đã đăng ký",color:V.purple,bg:V.purpleDim},{id:"paid",label:"Đóng học phí",color:V.mint,bg:V.mintDim},{id:"negotiating",label:"Đang thương lượng",color:V.cyan,bg:V.cyanDim},{id:"renew",label:"ĐK khóa tiếp",color:V.vred,bg:V.vredDim}];
 const CLASS_ST=[{id:"upcoming",label:"Sắp diễn ra",color:V.amber},{id:"active",label:"Đang diễn ra",color:V.mint},{id:"paused",label:"Tạm dừng",color:V.purple},{id:"completed",label:"Đã kết thúc",color:V.textDim},{id:"cancelled",label:"Đã hủy",color:V.red}];
 const PAY_ST=[{id:"pending",label:"Chờ TT",color:V.amber},{id:"partial",label:"Đặt cọc",color:V.cyan},{id:"paid",label:"Đã TT",color:V.mint},{id:"overdue",label:"Quá hạn",color:V.red}];
 
@@ -323,6 +323,27 @@ export default function VforgeApp(){
     {!dupWarn&&<Btn onClick={doSave} style={{width:"100%"}}>💾 Lưu Lead</Btn>}
   </Modal>)};
 
+  // EDIT LEAD (Admin + Sales — chỉ sửa tên PH/HV + SĐT/email)
+  const EditLead=({lead})=>{const[ef,setEf]=useState({parentName:lead.parentName,studentName:lead.studentName,phone:lead.phone,email:lead.email||""});const[eerr,setEerr]=useState("");
+  const doSave=()=>{
+    const pn=sanitize(ef.parentName),sn=sanitize(ef.studentName),ph=sanitize(ef.phone),em=sanitize(ef.email);
+    if(!pn||!sn||!ph){setEerr("Vui lòng điền đầy đủ: Tên PH, Tên HV, SĐT");return}
+    if(!validPhone(ph)){setEerr("SĐT không hợp lệ (cần 10 số, bắt đầu bằng 0)");return}
+    if(em&&!validEmail(em)){setEerr("Email không hợp lệ");return}
+    const dup=leads.find(l=>l.phone===ph&&l.id!==lead.id);
+    if(dup){setEerr(`SĐT đã tồn tại ở lead khác (${dup.parentName} - ${dup.studentName})`);return}
+    setLeads(p=>p.map(x=>x.id===lead.id?{...x,parentName:pn,studentName:sn,phone:ph,email:em}:x));
+    log("Sửa lead",`${lead.studentName} → ${sn}`);
+    setModal(null)};
+  return(<Modal title={`✏️ Sửa thông tin — ${lead.studentName}`} onClose={()=>setModal(null)}>
+    <Inp label="Họ tên phụ huynh *" value={ef.parentName} onChange={e=>{setEf({...ef,parentName:e.target.value});setEerr("")}}/>
+    <Inp label="Họ tên học viên *" value={ef.studentName} onChange={e=>{setEf({...ef,studentName:e.target.value});setEerr("")}}/>
+    <Inp label="Số điện thoại *" value={ef.phone} onChange={e=>{setEf({...ef,phone:e.target.value});setEerr("")}}/>
+    <Inp label="Email" value={ef.email} onChange={e=>{setEf({...ef,email:e.target.value});setEerr("")}}/>
+    {eerr&&<div style={{background:V.redDim,border:`1px solid ${V.red}33`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.red,fontSize:"13px",fontWeight:600}}>⚠ {eerr}</div>}
+    <Btn onClick={doSave} style={{width:"100%"}}>💾 Lưu thay đổi</Btn>
+  </Modal>)};
+
   // ENROLL (auto-assign + password)
   const Enroll=({lead})=>{const co=COURSES.find(c=>c.id===lead.course);const bc=bestCls(lead.course);const ac=classes.filter(c=>c.course===lead.course&&["upcoming","active"].includes(c.status));
   const[sel,setSel]=useState(bc?.id||"");const[wc,setWc]=useState(false);const[pw,setPw]=useState("");const[pe,setPe]=useState("");const[pv,setPv]=useState(false);
@@ -434,7 +455,7 @@ export default function VforgeApp(){
   return(<div>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}><h2 style={{color:V.text,margin:0,fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>📞 Quản lý <span style={{color:V.accent}}>Sales</span></h2><Btn onClick={()=>setModal("add_lead")}><Ic.Plus/> Thêm Lead</Btn></div>
     <div style={{display:"flex",gap:"8px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}><div style={{position:"relative",flex:1,minWidth:"200px"}}><div style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",color:V.textFaint}}><Ic.Search/></div><input placeholder="Tìm lead..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"9px 14px 9px 36px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"8px",color:V.text,fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div><div style={{display:"flex",gap:"4px",flexWrap:"wrap"}}><Btn small variant={leadF==="all"?"primary":"ghost"} onClick={()=>setLeadF("all")}>Tất cả ({leads.length})</Btn>{LEAD_ST.map(s=><Btn key={s.id} small variant={leadF===s.id?"primary":"ghost"} onClick={()=>setLeadF(s.id)}>{s.label} ({lbySt[s.id]?.length||0})</Btn>)}</div></div>
-    <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1380px"}}><thead><tr><TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Hình thức</TH><TH>Trình độ</TH><TH>Xếp lớp</TH><TH>Lý do chưa chốt</TH><TH>Ghi chú</TH><TH>Người GT</TH>{user.role==="admin"&&<TH></TH>}</tr></thead>
+    <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1420px"}}><thead><tr><TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Hình thức</TH><TH>Trình độ</TH><TH>Xếp lớp</TH><TH>Lý do chưa chốt</TH><TH>Ghi chú</TH><TH>Người GT</TH>{(user.role==="admin"||user.role==="sales")&&<TH></TH>}</tr></thead>
     <tbody>{fl.map(l=>{const st=LEAD_ST.find(s=>s.id===l.status);const co=COURSES.find(c=>c.id===l.course);const isPaid=l.status==="paid"||l.status==="renew";const ac=classes.filter(c=>c.course===l.course&&["upcoming","active"].includes(c.status));const bc=bestCls(l.course);return<tr key={l.id} onMouseEnter={e=>e.currentTarget.style.background=V.surface2} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
       <TD style={{color:V.text,fontWeight:600}}>{l.parentName}</TD><TD style={{color:V.text,fontWeight:600}}>{l.studentName}</TD><TD>{l.phone}</TD><TD style={{fontSize:"12px"}}>{l.email||"—"}</TD>
       <TD><select value={l.status} onChange={e=>{const ns=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,status:ns}:x));if(ns==="paid"){const b=bestCls(l.course);if(b&&!students.find(s=>s.name===l.studentName&&s.course===l.course)){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:"Auto-assign"}]);setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:b.id}:x))}}}} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></TD>
@@ -444,9 +465,10 @@ export default function VforgeApp(){
       <TD>{isPaid?(()=>{const stu=students.find(s=>s.name===l.studentName&&s.course===l.course);const assignedCls=classes.find(c=>c.id===(stu?.classId||l.assignedClass));if(user.role==="admin"){return ac.length>0?<select value={stu?.classId||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!stu){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:""}])}else{setStudents(p=>p.map(s=>s.id===stu.id?{...s,classId:cid}:s))}log("Đổi lớp (Admin)",`${l.studentName} → ${classes.find(c=>c.id===cid)?.name}`)}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>}
       return assignedCls?<Badge color={V.mint} bg={V.mintDim}>{assignedCls.name}</Badge>:(ac.length>0?<span style={{color:V.textFaint,fontSize:"11px"}}>Đang xử lý...</span>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>)})():<span style={{color:V.textGhost,fontSize:"11px"}}>Cần đóng HP</span>}</TD>
       <TD>{!isPaid&&l.status!=="renew"?<div style={{display:"flex",flexDirection:"column",gap:"4px"}}><select value={l.lostReason||""} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,lostReason:e.target.value}:x))} style={{padding:"4px 8px",background:V.surface2,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.textMid,fontSize:"11px",outline:"none",cursor:"pointer"}}><option value="">-- Chọn --</option>{LOST_REASONS.map(r=><option key={r} value={r}>{r}</option>)}</select>{l.lostReason==="Khác"&&<input value={l.lostNote||""} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,lostNote:e.target.value}:x))} placeholder="Ghi chú..." style={{padding:"4px 8px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.text,fontSize:"11px",outline:"none",width:"100%",boxSizing:"border-box"}}/>}</div>:<span style={{color:V.textGhost,fontSize:"11px"}}>—</span>}</TD>
-      <TD style={{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:"12px",color:V.textDim}}>{l.notes||"—"}</TD>
+      <TD style={{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:"12px",color:V.textDim,cursor:l.notes?"help":"default"}} title={l.notes||""}>{l.notes||"—"}</TD>
       <TD style={{color:l.referrer?V.accent:V.textGhost,fontWeight:l.referrer?600:400,fontSize:"12px"}}>{l.referrer||"—"}</TD>
-      {user.role==="admin"&&<TD><Btn small variant="danger" onClick={()=>{if(confirm(`Xóa lead "${l.studentName}"?`)){setLeads(p=>p.filter(x=>x.id!==l.id));log("Xóa lead",`${l.studentName} (${l.parentName})`)}}}><Ic.Trash/></Btn></TD>}
+      {user.role==="admin"&&<TD><div style={{display:"flex",gap:"4px"}}><Btn small variant="secondary" onClick={()=>setModal({type:"edit_lead",lead:l})}>✏️</Btn><Btn small variant="danger" onClick={()=>{if(confirm(`Xóa lead "${l.studentName}"?`)){setLeads(p=>p.filter(x=>x.id!==l.id));log("Xóa lead",`${l.studentName} (${l.parentName})`)}}}><Ic.Trash/></Btn></div></TD>}
+      {user.role==="sales"&&<TD><Btn small variant="secondary" onClick={()=>setModal({type:"edit_lead",lead:l})}>✏️ Sửa</Btn></TD>}
     </tr>})}</tbody></table></div>{!fl.length&&<div style={{textAlign:"center",padding:"40px",color:V.textFaint}}>Không tìm thấy lead</div>}</div>
   </div>)};
 
@@ -581,6 +603,6 @@ export default function VforgeApp(){
       <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>{log("Đăng xuất","");setUser(null)}}><Ic.Logout/></Btn></div>
     </div></div>
     <div style={{maxWidth:"1200px",margin:"0 auto",padding:"24px"}}>{can(tab)?pg[tab]:<div style={{textAlign:"center",padding:"60px",color:V.textFaint}}>Không có quyền truy cập</div>}</div>
-    {modal==="add_lead"&&<AddLead/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
+    {modal==="add_lead"&&<AddLead/>}{modal?.type==="edit_lead"&&<EditLead lead={modal.lead}/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
   </div>);
 }
