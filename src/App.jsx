@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useSynced, useSyncedValue, load, save } from "./lib/useSynced";
 
 const V = {
   bg:"#f7f8fa",surface:"#ffffff",surface2:"#f0f2f5",border:"#e0e4ea",border2:"#d0d5dd",
@@ -200,23 +201,24 @@ const TD=({children,style:s})=><td style={{padding:"10px 12px",fontSize:"13px",c
 
 const Logo=({w=120})=><svg width={w} height={w*0.3} viewBox="0 0 260 80" xmlns="http://www.w3.org/2000/svg"><path d="M5 8 L32 72 L40 72 L22 28 L36 28 L36 8 L26 8 L26 22 L18 8 Z" fill="#00A79D"/><path d="M26 8 L26 22 L36 22 L36 8 Z" fill="#EF4136"/><path d="M30 12 L44 12 L44 8 L36 8 L36 22 L30 22 Z" fill="#EF4136"/><path d="M30 16 L42 16 L42 20 L30 20 Z" fill="#EF4136"/><text x="48" y="62" fontFamily="'Glory',sans-serif" fontSize="58" fontWeight="700" fill="#00A79D" letterSpacing="1">orge</text></svg>;
 
-// --- PERSIST HELPERS ---
-const load=(key,fallback)=>{try{const d=localStorage.getItem("vf_"+key);return d?JSON.parse(d):fallback}catch{return fallback}};
-const save=(key,val)=>{try{localStorage.setItem("vf_"+key,JSON.stringify(val))}catch{}};
+// --- PERSIST: Supabase (xem src/lib/useSynced.js), fallback localStorage khi chưa cấu hình .env.local ---
 
 export default function VforgeApp(){
   const[user,setUser]=useState(()=>load("user",null));
-  const[accounts,setAccounts]=useState(()=>load("accounts",ACCOUNTS));
+  const[accounts,setAccounts,syAcc]=useSynced("accounts",ACCOUNTS);
   const[tab,setTab]=useState("dashboard");
-  const[leads,setLeads]=useState(()=>load("leads",I_LEADS));
-  const[students,setStudents]=useState(()=>load("students",I_STU));
-  const[classes,setClasses]=useState(()=>load("classes",I_CLS));
-  const[attendance,setAttendance]=useState(()=>load("attendance",I_ATT));
+  const[leads,setLeads,syLeads]=useSynced("leads",I_LEADS);
+  const[students,setStudents,syStu]=useSynced("students",I_STU);
+  const[classes,setClasses,syCls]=useSynced("classes",I_CLS);
+  const[attendance,setAttendance,syAtt]=useSynced("attendance",I_ATT);
   const[modal,setModal]=useState(null);
   const[search,setSearch]=useState("");
   const[leadF,setLeadF]=useState("all");
-  const[adminPw,setAdminPw]=useState(()=>load("adminPw",hash("vforge2026")));
-  const[auditLog,setAuditLog]=useState(()=>load("audit",[]));
+  const[adminPw,setAdminPw,syPw]=useSyncedValue("adminPw",hash("vforge2026"));
+  const[auditLog,setAuditLog,syAud]=useSynced("audit_log",[],{ren:{user:"user_name"},localKey:"audit"});
+  const syncs=[syAcc,syLeads,syStu,syCls,syAtt,syPw,syAud];
+  const dataReady=syncs.every(x=>x.ready);
+  const syncError=syncs.map(x=>x.error).find(Boolean);
 
   // Session timeout
   const lastActivity=useRef(Date.now());
@@ -227,14 +229,7 @@ export default function VforgeApp(){
   const log=(action,detail)=>{const entry={id:Date.now(),user:user?.name||"System",role:user?.role||"",action,detail,time:now()};setAuditLog(p=>{const n=[entry,...p].slice(0,200);return n})};
 
   // Auto-save on change
-  useEffect(()=>save("user",user),[user]);
-  useEffect(()=>save("accounts",accounts),[accounts]);
-  useEffect(()=>save("leads",leads),[leads]);
-  useEffect(()=>save("students",students),[students]);
-  useEffect(()=>save("classes",classes),[classes]);
-  useEffect(()=>save("attendance",attendance),[attendance]);
-  useEffect(()=>save("adminPw",adminPw),[adminPw]);
-  useEffect(()=>save("audit",auditLog),[auditLog]);
+  useEffect(()=>save("user",user),[user]); // phiên đăng nhập giữ ở máy này; dữ liệu nghiệp vụ đồng bộ qua Supabase
 
   const can=(t)=>user&&ROLE_CFG[user.role]?.tabs.includes(t);
   const totRev=students.reduce((s,st)=>s+st.amountPaid,0);
@@ -257,6 +252,7 @@ export default function VforgeApp(){
   // AUTO-SYNC: đảm bảo mọi lead đã đóng HP (paid/renew) đều có student record + lớp thật,
   // kể cả khi lúc đổi trạng thái chưa có lớp phù hợp và Admin tạo lớp sau đó.
   useEffect(()=>{
+    if(!dataReady)return;
     const toSync=leads.filter(l=>(l.status==="paid"||l.status==="renew")&&!students.find(s=>s.name===l.studentName&&s.course===l.course));
     if(toSync.length===0)return;
     const newStudents=[];
@@ -274,6 +270,10 @@ export default function VforgeApp(){
       setLeads(p=>p.map(x=>leadUpdates[x.id]?{...x,assignedClass:leadUpdates[x.id]}:x));
     }
   },[leads,classes]);
+
+  // LOADING / SYNC ERROR
+  if(syncError)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:V.bg,fontFamily:"'Glory',sans-serif"}}><div style={{background:V.surface,border:`1px solid ${V.red}55`,borderRadius:"16px",padding:"28px 32px",maxWidth:"520px"}}><div style={{color:V.red,fontWeight:800,fontSize:"16px",marginBottom:"8px"}}>⚠ Lỗi kết nối Supabase</div><div style={{color:V.textMid,fontSize:"13px",wordBreak:"break-word"}}>{syncError}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"12px"}}>Kiểm tra: đã chạy <code>supabase/schema.sql</code> trong SQL Editor chưa, và <code>.env.local</code> đúng URL/anon key chưa. Sau đó tải lại trang.</div></div></div>);
+  if(!dataReady)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:V.bg,fontFamily:"'Glory',sans-serif"}}><div style={{textAlign:"center"}}><Logo w={140}/><div style={{color:V.textDim,fontSize:"13px",marginTop:"16px"}}>Đang tải dữ liệu từ Supabase…</div></div></div>);
 
   // LOGIN
   if(!user){
