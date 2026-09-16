@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSynced, useSyncedValue } from "./lib/useSynced";
 import { sb, hasSupabase } from "./lib/supabase";
+import { load } from "./lib/useSynced";
+import { stable, SAMPLE_LEADS, SAMPLE_STUDENTS, SAMPLE_CLASSES, SAMPLE_ATTENDANCE } from "./lib/sampleKeys";
 
 const V = {
   bg:"#f7f8fa",surface:"#ffffff",surface2:"#f0f2f5",border:"#e0e4ea",border2:"#d0d5dd",
@@ -414,6 +416,17 @@ function Crm({user,onLogout}){
       </div>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}>
         <h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔄 Dữ liệu</h3>
+        <p style={{color:V.textDim,fontSize:"13px",marginBottom:"8px"}}>Khôi phục từ bản lưu cũ trong trình duyệt này (localStorage). Chỉ thêm các dòng chưa có trên Supabase; các dòng mẫu chưa từng sửa sẽ bị bỏ qua.</p>
+        <Btn variant="secondary" onClick={()=>{
+          const pick=(key,cur,sample)=>{const loc=load(key,null);if(!Array.isArray(loc))return[];const have=new Set(cur.map(r=>r.id));return loc.filter(r=>!have.has(r.id)&&!sample.has(stable(r)))};
+          const nl=pick("leads",leads,SAMPLE_LEADS),ns=pick("students",students,SAMPLE_STUDENTS),na=pick("attendance",attendance,SAMPLE_ATTENDANCE);
+          const allCls=load("classes",null)||[];const haveC=new Set(classes.map(c=>c.id));
+          const refd=new Set([...students,...ns].map(x=>x.classId).concat([...leads,...nl].map(x=>x.assignedClass)).filter(Boolean));
+          const nc=allCls.filter(c=>!haveC.has(c.id)&&(refd.has(c.id)||!SAMPLE_CLASSES.has(stable(c))));
+          if(!nl.length&&!ns.length&&!nc.length&&!na.length){alert("Không có gì để khôi phục (trình duyệt này không có bản lưu cũ, hoặc đã có đủ trên Supabase).");return}
+          if(!confirm(`Khôi phục: ${nl.length} lead, ${ns.length} học viên, ${nc.length} lớp, ${na.length} điểm danh?`))return;
+          if(nc.length)setClasses(p=>[...p,...nc]);if(ns.length)setStudents(p=>[...p,...ns]);if(nl.length)setLeads(p=>[...p,...nl]);if(na.length)setAttendance(p=>[...p,...na]);
+          log("Khôi phục từ localStorage",`${nl.length} lead, ${ns.length} HV, ${nc.length} lớp, ${na.length} điểm danh`);alert("Đã khôi phục. Kiểm tra lại các tab.")}} style={{marginBottom:"20px"}}>♻️ Khôi phục từ bản lưu trình duyệt</Btn>
         <p style={{color:V.red,fontSize:"13px",marginBottom:"12px",fontWeight:600}}>⚠ Xóa sạch toàn bộ — không còn lead, học viên, lớp học nào. Chỉ giữ lại tài khoản đăng nhập.</p>
         <Btn variant="danger" onClick={()=>{if(confirm("XÓA SẠCH toàn bộ dữ liệu thật (lead, học viên, lớp, điểm danh)? Hành động KHÔNG thể hoàn tác!")){if(confirm("Xác nhận lần 2: bạn chắc chắn muốn xóa sạch?")){setLeads([]);setStudents([]);setClasses([]);setAttendance([]);setAuditLog([]);log("Xóa sạch toàn bộ dữ liệu","")}}}}>🗑 Xóa sạch dữ liệu</Btn>
       </div>
