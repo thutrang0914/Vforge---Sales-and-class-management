@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useSynced, useSyncedValue, load, save } from "./lib/useSynced";
+import { useSynced, useSyncedValue } from "./lib/useSynced";
+import { sb, hasSupabase } from "./lib/supabase";
 
 const V = {
   bg:"#f7f8fa",surface:"#ffffff",surface2:"#f0f2f5",border:"#e0e4ea",border2:"#d0d5dd",
@@ -20,8 +21,8 @@ const sanitize=(s)=>typeof s==="string"?s.replace(/<[^>]*>/g,"").trim():"";
 const validPhone=(p)=>/^0\d{9}$/.test(p);
 const validEmail=(e)=>!e||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const SESSION_TIMEOUT=30*60*1000; // 30 phút
+const PROJECT_REF=(import.meta.env.VITE_SUPABASE_URL||"").replace(/^https?:\/\//,"").split(".")[0];
 
-const ACCOUNTS=[{id:1,username:"admin",password:hash("Vforge@2026"),name:"Quan",role:"admin"},{id:2,username:"sales",password:hash("Sales@2026"),name:"Thu Trang",role:"sales"},{id:3,username:"reception",password:hash("Letan@2026"),name:"Minh Anh",role:"reception"}];
 const ROLE_CFG={admin:{label:"Admin",color:V.vred,tabs:["dashboard","sales","classes","students","report","settings"]},sales:{label:"Sales",color:V.accent,tabs:["dashboard","sales","classes","students"]},reception:{label:"Lễ tân",color:V.purple,tabs:["dashboard","classes","students"]}};
 
 const COURSE_LEVELS=[{id:"start",name:"Code Start",color:V.amber,icon:"🌱"},{id:"up",name:"Code Up",color:V.accent,icon:"🚀"},{id:"pro",name:"Code Pro",color:V.purple,icon:"⚡"},{id:"proplus",name:"Code Pro+",color:V.vred,icon:"🏆"}];
@@ -61,9 +62,8 @@ const Logo=({w=120})=><svg width={w} height={w*0.3} viewBox="0 0 260 80" xmlns="
 
 // --- PERSIST: Supabase (xem src/lib/useSynced.js), fallback localStorage khi chưa cấu hình .env.local ---
 
-export default function VforgeApp(){
-  const[user,setUser]=useState(()=>load("user",null));
-  const[accounts,setAccounts,syAcc]=useSynced("accounts",ACCOUNTS);
+function Crm({user,onLogout}){
+  const[profiles,setProfiles,syProf]=useSynced("profiles",[]);
   const[tab,setTab]=useState("dashboard");
   const[leads,setLeads,syLeads]=useSynced("leads",I_LEADS);
   const[students,setStudents,syStu]=useSynced("students",I_STU);
@@ -74,20 +74,19 @@ export default function VforgeApp(){
   const[leadF,setLeadF]=useState("all");
   const[adminPw,setAdminPw,syPw]=useSyncedValue("adminPw",hash("vforge2026"));
   const[auditLog,setAuditLog,syAud]=useSynced("audit_log",[],{ren:{user:"user_name"},localKey:"audit"});
-  const syncs=[syAcc,syLeads,syStu,syCls,syAtt,syPw,syAud];
+  const syncs=[syProf,syLeads,syStu,syCls,syAtt,syPw,syAud];
   const dataReady=syncs.every(x=>x.ready);
   const syncError=syncs.map(x=>x.error).find(Boolean);
 
   // Session timeout
   const lastActivity=useRef(Date.now());
-  const checkTimeout=useCallback(()=>{if(user&&Date.now()-lastActivity.current>SESSION_TIMEOUT){setUser(null);save("user",null);alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.")}},[ user]);
+  const checkTimeout=useCallback(()=>{if(user&&Date.now()-lastActivity.current>SESSION_TIMEOUT){alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");onLogout()}},[user]);
   useEffect(()=>{const t=setInterval(checkTimeout,60000);const reset=()=>{lastActivity.current=Date.now()};window.addEventListener("mousemove",reset);window.addEventListener("keydown",reset);return()=>{clearInterval(t);window.removeEventListener("mousemove",reset);window.removeEventListener("keydown",reset)}},[checkTimeout]);
 
   // Audit helper
   const log=(action,detail)=>{const entry={id:Date.now(),user:user?.name||"System",role:user?.role||"",action,detail,time:now()};setAuditLog(p=>{const n=[entry,...p].slice(0,200);return n})};
 
   // Auto-save on change
-  useEffect(()=>save("user",user),[user]); // phiên đăng nhập giữ ở máy này; dữ liệu nghiệp vụ đồng bộ qua Supabase
 
   const can=(t)=>user&&ROLE_CFG[user.role]?.tabs.includes(t);
   const totRev=students.reduce((s,st)=>s+st.amountPaid,0);
@@ -133,22 +132,6 @@ export default function VforgeApp(){
   if(syncError)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:V.bg,fontFamily:"'Glory',sans-serif"}}><div style={{background:V.surface,border:`1px solid ${V.red}55`,borderRadius:"16px",padding:"28px 32px",maxWidth:"520px"}}><div style={{color:V.red,fontWeight:800,fontSize:"16px",marginBottom:"8px"}}>⚠ Lỗi kết nối Supabase</div><div style={{color:V.textMid,fontSize:"13px",wordBreak:"break-word"}}>{syncError}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"12px"}}>Kiểm tra: đã chạy <code>supabase/schema.sql</code> trong SQL Editor chưa, và <code>.env.local</code> đúng URL/anon key chưa. Sau đó tải lại trang.</div></div></div>);
   if(!dataReady)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:V.bg,fontFamily:"'Glory',sans-serif"}}><div style={{textAlign:"center"}}><Logo w={140}/><div style={{color:V.textDim,fontSize:"13px",marginTop:"16px"}}>Đang tải dữ liệu từ Supabase…</div></div></div>);
 
-  // LOGIN
-  if(!user){
-    const Login=()=>{const[u,setU]=useState("");const[p,setP]=useState("");const[e,setE]=useState("");
-    return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:V.bg,fontFamily:"'Glory',sans-serif"}}><div style={{background:V.surface,borderRadius:"20px",padding:"40px",width:"100%",maxWidth:"400px",boxShadow:"0 20px 60px rgba(0,0,0,0.08)",border:`1px solid ${V.border}`}}>
-      <div style={{textAlign:"center",marginBottom:"32px"}}><Logo w={140}/><div style={{color:V.textFaint,fontSize:"11px",letterSpacing:"3px",marginTop:"8px"}}>EDUCATION CRM</div></div>
-      <Inp label="Tên đăng nhập" value={u} onChange={ev=>{setU(ev.target.value);setE("")}} placeholder="admin / sales / reception" onKeyDown={ev=>ev.key==="Enter"&&doLogin()}/>
-      <Inp label="Mật khẩu" type="password" value={p} onChange={ev=>{setP(ev.target.value);setE("")}} placeholder="••••••" onKeyDown={ev=>ev.key==="Enter"&&doLogin()}/>
-      {e&&<div style={{color:V.red,fontSize:"13px",marginBottom:"12px",textAlign:"center"}}>{e}</div>}
-      <Btn onClick={doLogin} style={{width:"100%",padding:"12px",fontSize:"15px"}}>Đăng nhập</Btn>
-      <div style={{marginTop:"20px",padding:"14px",background:V.surface2,borderRadius:"10px",fontSize:"12px",color:V.textDim}}>
-        <div style={{fontWeight:700,marginBottom:"6px"}}>Tài khoản mẫu:</div>
-        <div>Admin: <b>admin</b> / Vforge@2026</div><div>Sales: <b>sales</b> / Sales@2026</div><div>Lễ tân: <b>reception</b> / Letan@2026</div>
-      </div>
-    </div></div>);
-    function doLogin(){const f=accounts.find(a=>a.username===u&&a.password===hash(p));if(f){setUser(f);setTab("dashboard");lastActivity.current=Date.now();const entry={id:Date.now(),user:f.name,role:f.role,action:"Đăng nhập",detail:"",time:now()};setAuditLog(prev=>[entry,...prev].slice(0,200))}else setE("Sai tên đăng nhập hoặc mật khẩu")}};
-    return<Login/>}
 
   // ADD LEAD
   const AddLead=()=>{const[f,setF]=useState({parentName:"",studentName:"",phone:"",email:"",course:COURSES[0].id,source:LEAD_SRC[0],format:"offline",notes:"",referrer:"",createdAt:tod()});
@@ -297,6 +280,17 @@ export default function VforgeApp(){
     {cs.length>0&&<Btn onClick={()=>{setAttendance(p=>[...p,...cs.filter(st=>mk[st.id]).map(st=>({id:Date.now()+st.id,classId:sc,studentId:st.id,date:dt,status:mk[st.id],note:""}))]);setModal(null)}} style={{width:"100%",marginTop:"16px"}}>💾 Lưu điểm danh</Btn>}
   </Modal>)};
 
+  // CHANGE PASSWORD (own account)
+  const ChangePw=({onClose})=>{const[p1,setP1]=useState("");const[p2,setP2]=useState("");const[msg,setMsg]=useState(null);const[busy,setBusy]=useState(false);
+  const doChange=async()=>{if(p1.length<6){setMsg({e:"Mật khẩu tối thiểu 6 ký tự"});return}if(p1!==p2){setMsg({e:"Hai mật khẩu không khớp"});return}setBusy(true);const{error}=await sb.auth.updateUser({password:p1});setBusy(false);if(error)setMsg({e:error.message});else{setMsg({ok:"Đã đổi mật khẩu"});log("Đổi mật khẩu","");setTimeout(onClose,900)}};
+  return(<Modal title="🔑 Đổi mật khẩu của tôi" onClose={onClose}>
+    <div style={{color:V.textDim,fontSize:"13px",marginBottom:"14px"}}>{user.email}</div>
+    <Inp label="Mật khẩu mới" type="password" value={p1} onChange={e=>{setP1(e.target.value);setMsg(null)}}/>
+    <Inp label="Nhập lại mật khẩu mới" type="password" value={p2} onChange={e=>{setP2(e.target.value);setMsg(null)}} onKeyDown={e=>e.key==="Enter"&&doChange()}/>
+    {msg?.e&&<div style={{color:V.red,fontSize:"13px",marginBottom:"12px"}}>⚠ {msg.e}</div>}{msg?.ok&&<div style={{color:V.mint,fontSize:"13px",marginBottom:"12px"}}>✅ {msg.ok}</div>}
+    <Btn onClick={doChange} disabled={busy} style={{width:"100%"}}>{busy?"Đang lưu…":"💾 Lưu"}</Btn>
+  </Modal>)};
+
   // DASHBOARD
   const Dash=()=>(<div>
     <div style={{marginBottom:"24px"}}><h2 style={{color:V.text,margin:"0 0 4px",fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>Dashboard <span style={{color:"#EF4136"}}>V</span><span style={{color:V.accent}}>forge</span></h2><p style={{color:V.textFaint,margin:0,fontSize:"13px"}}>{new Date().toLocaleDateString("vi-VN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p></div>
@@ -404,36 +398,19 @@ export default function VforgeApp(){
 
   // SETTINGS (Admin)
   const SetP=()=>{const[np,setNp]=useState(adminPw);const[sv,setSv]=useState(false);
-  const[showAdd,setShowAdd]=useState(false);const[nf,setNf]=useState({name:"",username:"",password:"",role:"sales"});const[delConfirm,setDelConfirm]=useState(null);
   return(<div><h2 style={{color:V.text,margin:"0 0 24px",fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>⚙️ <span style={{color:V.accent}}>Cài đặt</span></h2>
     <div style={{maxWidth:"600px"}}>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginBottom:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔐 Mật khẩu chuyển lớp</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Dùng khi Sales muốn chuyển HV sang lớp khác thay vì lớp tự động.</p><Inp label="Mật khẩu mới" value={np} onChange={e=>{setNp(e.target.value);setSv(false)}}/><Btn onClick={()=>{if(np.length<6){alert("Mật khẩu tối thiểu 6 ký tự!");return}setAdminPw(hash(np));log("Đổi MK chuyển lớp","");setSv(true)}}>{sv?"✅ Đã lưu":"💾 Lưu"}</Btn></div>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}><h3 style={{color:V.text,margin:0,fontSize:"15px",fontWeight:700}}>👥 Tài khoản hệ thống</h3><Btn small onClick={()=>setShowAdd(!showAdd)}>{showAdd?"✕ Đóng":"+ Tạo TK"}</Btn></div>
-        {showAdd&&<div style={{background:V.bg,borderRadius:"10px",padding:"16px",marginBottom:"16px",border:`1px solid ${V.border}`}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-            <Inp label="Họ tên" value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="VD: Nguyễn Văn A"/>
-            <Inp label="Tên đăng nhập" value={nf.username} onChange={e=>setNf({...nf,username:e.target.value})} placeholder="VD: nguyenvana"/>
-            <Inp label="Mật khẩu" value={nf.password} onChange={e=>setNf({...nf,password:e.target.value})} placeholder="Tối thiểu 6 ký tự"/>
-            <Sel label="Vai trò" value={nf.role} onChange={e=>setNf({...nf,role:e.target.value})}><option value="admin">Admin</option><option value="sales">Sales</option><option value="reception">Lễ tân</option></Sel>
-          </div>
-          <Btn onClick={()=>{if(!nf.name||!nf.username||!nf.password)return;if(nf.password.length<6){alert("Mật khẩu tối thiểu 6 ký tự!");return}if(accounts.find(a=>a.username===nf.username)){alert("Username đã tồn tại!");return}setAccounts(p=>[...p,{id:Date.now(),name:sanitize(nf.name),username:sanitize(nf.username),password:hash(nf.password),role:nf.role}]);log("Tạo tài khoản",`${nf.name} (@${nf.username}) - ${ROLE_CFG[nf.role]?.label}`);setNf({name:"",username:"",password:"",role:"sales"});setShowAdd(false)}} style={{width:"100%"}}>✅ Tạo tài khoản</Btn>
-        </div>}
-        {accounts.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:`1px solid ${V.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}><h3 style={{color:V.text,margin:0,fontSize:"15px",fontWeight:700}}>👥 Tài khoản hệ thống</h3><a href={`https://supabase.com/dashboard/project/${PROJECT_REF}/auth/users`} target="_blank" rel="noreferrer" style={{fontSize:"12px",color:V.accent,fontWeight:600}}>+ Tạo / xoá / reset MK trên Supabase ↗</a></div>
+        <p style={{color:V.textDim,fontSize:"12px",marginBottom:"14px"}}>Tạo tài khoản mới trong Supabase (Authentication → Users → Add user, tick "Auto Confirm"). Tài khoản mới mặc định vai trò <b>Sales</b> — đổi vai trò và tên hiển thị tại đây.</p>
+        {profiles.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:`1px solid ${V.border}`,gap:"12px",flexWrap:"wrap"}}>
           <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-            <div style={{width:"36px",height:"36px",borderRadius:"10px",background:`${ROLE_CFG[a.role]?.color}18`,display:"flex",alignItems:"center",justifyContent:"center",color:ROLE_CFG[a.role]?.color,fontWeight:700,fontSize:"14px"}}>{a.name.charAt(0)}</div>
-            <div><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{a.name}</div><div style={{color:V.textFaint,fontSize:"12px"}}>@{a.username}</div></div>
+            <div style={{width:"36px",height:"36px",borderRadius:"10px",background:`${ROLE_CFG[a.role]?.color}18`,display:"flex",alignItems:"center",justifyContent:"center",color:ROLE_CFG[a.role]?.color,fontWeight:700,fontSize:"14px"}}>{(a.name||"?").charAt(0)}</div>
+            <div><input value={a.name||""} onChange={e=>setProfiles(p=>p.map(x=>x.id===a.id?{...x,name:e.target.value}:x))} onBlur={()=>log("Đổi tên TK",a.email)} style={{color:V.text,fontSize:"14px",fontWeight:600,border:"none",borderBottom:`1px dashed ${V.border2}`,background:"transparent",outline:"none",width:"180px"}}/><div style={{color:V.textFaint,fontSize:"12px"}}>{a.email}</div></div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-            <Badge color={ROLE_CFG[a.role]?.color}>{ROLE_CFG[a.role]?.label}</Badge>
-            {a.id!==user.id&&(delConfirm===a.id?<div style={{display:"flex",gap:"4px"}}><Btn small variant="danger" onClick={()=>{setAccounts(p=>p.filter(x=>x.id!==a.id));setDelConfirm(null)}}>Xóa</Btn><Btn small variant="ghost" onClick={()=>setDelConfirm(null)}>Hủy</Btn></div>:<Btn small variant="ghost" onClick={()=>setDelConfirm(a.id)} style={{color:V.red,fontSize:"11px"}}>🗑</Btn>)}
-          </div>
+          <select value={a.role} disabled={a.id===user.id} onChange={e=>{setProfiles(p=>p.map(x=>x.id===a.id?{...x,role:e.target.value}:x));log("Đổi vai trò",`${a.email} → ${ROLE_CFG[e.target.value]?.label}`)}} style={{padding:"6px 10px",borderRadius:"6px",border:`1px solid ${V.border}`,background:V.bg,color:ROLE_CFG[a.role]?.color,fontWeight:700,fontSize:"12px"}}><option value="admin">Admin</option><option value="sales">Sales</option><option value="reception">Lễ tân</option></select>
         </div>)}
-      </div>
-      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔑 Đổi mật khẩu tài khoản</h3>
-        {accounts.map(a=>{const[show,setShow]=useState(false);const[newPw,setNewPw2]=useState("");
-        return<div key={a.id} style={{padding:"10px 0",borderBottom:`1px solid ${V.border}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{display:"flex",alignItems:"center",gap:"8px"}}><Badge color={ROLE_CFG[a.role]?.color}>{ROLE_CFG[a.role]?.label}</Badge><span style={{color:V.text,fontSize:"14px",fontWeight:600}}>{a.name}</span><span style={{color:V.textFaint,fontSize:"12px"}}>@{a.username}</span></div><Btn small variant="ghost" onClick={()=>setShow(!show)}>Đổi MK</Btn></div>
-        {show&&<div style={{display:"flex",gap:"8px",marginTop:"8px"}}><input type="password" value={newPw} onChange={e=>setNewPw2(e.target.value)} placeholder="Mật khẩu mới (6+ ký tự)" style={{flex:1,padding:"8px 12px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.text,fontSize:"13px",outline:"none"}}/><Btn small onClick={()=>{if(newPw.length<6){alert("Tối thiểu 6 ký tự!");return}setAccounts(p=>p.map(x=>x.id===a.id?{...x,password:hash(newPw)}:x));log("Đổi MK",`@${a.username}`);setShow(false);setNewPw2("")}}>Lưu</Btn></div>}</div>})}
       </div>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginTop:"20px"}}>
         <h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔄 Dữ liệu</h3>
@@ -456,9 +433,62 @@ export default function VforgeApp(){
     <div style={{background:V.surface,borderBottom:`1px solid ${V.border}`,position:"sticky",top:0,zIndex:100}}><div style={{maxWidth:"1200px",margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
       <div style={{display:"flex",alignItems:"center",gap:"24px"}}><div style={{display:"flex",alignItems:"center",gap:"10px",padding:"14px 0"}}><Logo/><div style={{color:V.textFaint,fontSize:"9px",letterSpacing:"2.5px",textTransform:"uppercase",fontFamily:"'Glory',sans-serif",marginTop:"2px"}}>WIRE THE CORE</div></div>
       <nav style={{display:"flex",gap:"2px"}}>{visT.map(t=><button key={t.id} onClick={()=>{setTab(t.id);setSearch("");setLeadF("all")}} style={{display:"flex",alignItems:"center",gap:"6px",padding:"14px 16px",border:"none",cursor:"pointer",fontSize:"13px",fontWeight:600,background:"transparent",color:tab===t.id?V.accent:V.textDim,borderBottom:`2px solid ${tab===t.id?V.accent:"transparent"}`}}>{t.icon}<span>{t.label}</span></button>)}</nav></div>
-      <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>{log("Đăng xuất","");setUser(null)}}><Ic.Logout/></Btn></div>
+      <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>setModal("change_pw")} title="Đổi mật khẩu"><Ic.Lock/></Btn><Btn small variant="ghost" onClick={()=>{log("Đăng xuất","");onLogout()}}><Ic.Logout/></Btn></div>
     </div></div>
     <div style={{maxWidth:"1200px",margin:"0 auto",padding:"24px"}}>{can(tab)?pg[tab]:<div style={{textAlign:"center",padding:"60px",color:V.textFaint}}>Không có quyền truy cập</div>}</div>
-    {modal==="add_lead"&&<AddLead/>}{modal?.type==="edit_lead"&&<EditLead lead={modal.lead}/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
+    {modal==="change_pw"&&<ChangePw onClose={()=>setModal(null)}/>}{modal==="add_lead"&&<AddLead/>}{modal?.type==="edit_lead"&&<EditLead lead={modal.lead}/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
   </div>);
+}
+
+// ====== AUTH GATE (Supabase Auth) ======
+const Center=({children})=>(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:V.bg,fontFamily:"'Glory',sans-serif"}}>{children}</div>);
+
+function Login({onDone}){
+  const[u,setU]=useState("");const[p,setP]=useState("");const[e,setE]=useState("");const[busy,setBusy]=useState(false);
+  const doLogin=async()=>{if(!u||!p){setE("Nhập email và mật khẩu");return}setBusy(true);setE("");const{error}=await sb.auth.signInWithPassword({email:u.trim(),password:p});setBusy(false);if(error)setE(/invalid/i.test(error.message)?"Sai email hoặc mật khẩu":error.message);else onDone?.()};
+  return(<Center><div style={{background:V.surface,borderRadius:"20px",padding:"40px",width:"100%",maxWidth:"400px",boxShadow:"0 20px 60px rgba(0,0,0,0.08)",border:`1px solid ${V.border}`}}>
+    <div style={{textAlign:"center",marginBottom:"32px"}}><Logo w={140}/><div style={{color:V.textFaint,fontSize:"11px",letterSpacing:"3px",marginTop:"8px"}}>EDUCATION CRM</div></div>
+    <Inp label="Email" type="email" value={u} onChange={ev=>{setU(ev.target.value);setE("")}} placeholder="ten@vforge.edu.vn" onKeyDown={ev=>ev.key==="Enter"&&doLogin()}/>
+    <Inp label="Mật khẩu" type="password" value={p} onChange={ev=>{setP(ev.target.value);setE("")}} placeholder="••••••" onKeyDown={ev=>ev.key==="Enter"&&doLogin()}/>
+    {e&&<div style={{color:V.red,fontSize:"13px",marginBottom:"12px",textAlign:"center"}}>{e}</div>}
+    <Btn onClick={doLogin} disabled={busy} style={{width:"100%",padding:"12px",fontSize:"15px"}}>{busy?"Đang đăng nhập…":"Đăng nhập"}</Btn>
+    <div style={{marginTop:"16px",fontSize:"12px",color:V.textFaint,textAlign:"center"}}>Quên mật khẩu? Liên hệ Admin để đặt lại.</div>
+  </div></Center>);
+}
+
+export default function VforgeApp(){
+  const[session,setSession]=useState(undefined); // undefined = đang kiểm tra
+  const[user,setUser]=useState(null);
+  const[err,setErr]=useState(null);
+
+  useEffect(()=>{
+    if(!hasSupabase)return;
+    sb.auth.getSession().then(({data})=>setSession(data.session??null));
+    const{data:sub}=sb.auth.onAuthStateChange((_e,s)=>setSession(s??null));
+    return()=>sub.subscription.unsubscribe();
+  },[]);
+
+  useEffect(()=>{
+    if(!session){setUser(null);return}
+    let alive=true;
+    (async()=>{
+      const{data,error}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+      if(!alive)return;
+      if(error){setErr(error.message);return}
+      if(!data){setErr("Tài khoản chưa có profile. Hãy chạy supabase/auth.sql rồi đăng nhập lại.");return}
+      setUser({id:data.id,email:data.email||session.user.email,name:data.name||session.user.email,role:data.role});
+      const entry={id:Date.now(),user_name:data.name||session.user.email,role:data.role,action:"Đăng nhập",detail:"",time:now()};
+      sb.from("audit_log").insert(entry).then(()=>{});
+    })();
+    return()=>{alive=false};
+  },[session?.user?.id]);
+
+  const logout=()=>{sb.auth.signOut();setUser(null)};
+
+  if(!hasSupabase)return(<Center><div style={{background:V.surface,border:`1px solid ${V.red}55`,borderRadius:"16px",padding:"28px 32px",maxWidth:"520px",color:V.textMid,fontSize:"13px"}}><div style={{color:V.red,fontWeight:800,fontSize:"16px",marginBottom:"8px"}}>⚠ Chưa cấu hình Supabase</div>Tạo file <code>.env.local</code> với <code>VITE_SUPABASE_URL</code> và <code>VITE_SUPABASE_ANON_KEY</code> (xem <code>.env.example</code>) rồi chạy lại.</div></Center>);
+  if(err)return(<Center><div style={{background:V.surface,border:`1px solid ${V.red}55`,borderRadius:"16px",padding:"28px 32px",maxWidth:"520px"}}><div style={{color:V.red,fontWeight:800,fontSize:"16px",marginBottom:"8px"}}>⚠ Lỗi đăng nhập</div><div style={{color:V.textMid,fontSize:"13px"}}>{err}</div><Btn small variant="secondary" onClick={()=>{setErr(null);logout()}} style={{marginTop:"14px"}}>Đăng xuất</Btn></div></Center>);
+  if(session===undefined)return(<Center><div style={{textAlign:"center"}}><Logo w={140}/><div style={{color:V.textDim,fontSize:"13px",marginTop:"16px"}}>Đang kiểm tra phiên đăng nhập…</div></div></Center>);
+  if(!session)return<Login/>;
+  if(!user)return(<Center><div style={{textAlign:"center"}}><Logo w={140}/><div style={{color:V.textDim,fontSize:"13px",marginTop:"16px"}}>Đang tải thông tin tài khoản…</div></div></Center>);
+  return<Crm key={user.id} user={user} onLogout={logout}/>;
 }

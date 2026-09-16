@@ -98,7 +98,7 @@ export function useSyncedValue(key, fallback) {
       if (error) { setError(`settings: ${error.message}`); return }
       let v = fallback;
       if (data) v = data.value;
-      else { v = load(key, fallback); await sb.from("settings").upsert({ key, value: v }) }
+      else { v = load(key, fallback); await sb.from("settings").upsert({ key, value: v }) } // lỗi (nếu không phải admin) bỏ qua, dùng fallback
       synced.current = JSON.stringify(v); setVal(v); setReady(true);
     })();
     return () => { alive = false };
