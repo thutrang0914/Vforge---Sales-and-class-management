@@ -399,10 +399,10 @@ function Crm({user,onLogout}){
   </div>)};
 
   // SETTINGS (Admin)
-  const SetP=()=>{const[np,setNp]=useState(adminPw);const[sv,setSv]=useState(false);
+  const SetP=()=>{const[np,setNp]=useState("");const[sv,setSv]=useState(false);
   return(<div><h2 style={{color:V.text,margin:"0 0 24px",fontSize:"22px",fontWeight:800,fontFamily:"'Glory',sans-serif"}}>⚙️ <span style={{color:V.accent}}>Cài đặt</span></h2>
     <div style={{maxWidth:"600px"}}>
-      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginBottom:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔐 Mật khẩu chuyển lớp</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Dùng khi Sales muốn chuyển HV sang lớp khác thay vì lớp tự động.</p><Inp label="Mật khẩu mới" value={np} onChange={e=>{setNp(e.target.value);setSv(false)}}/><Btn onClick={()=>{if(np.length<6){alert("Mật khẩu tối thiểu 6 ký tự!");return}setAdminPw(hash(np));log("Đổi MK chuyển lớp","");setSv(true)}}>{sv?"✅ Đã lưu":"💾 Lưu"}</Btn></div>
+      <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px",marginBottom:"20px"}}><h3 style={{color:V.text,margin:"0 0 16px",fontSize:"15px",fontWeight:700}}>🔐 Mật khẩu chuyển lớp</h3><p style={{color:V.textDim,fontSize:"13px",marginBottom:"16px"}}>Dùng khi Sales muốn chuyển HV sang lớp khác thay vì lớp tự động.</p><Inp label="Mật khẩu mới" type="password" value={np} onChange={e=>{setNp(e.target.value);setSv(false)}} placeholder="Nhập mật khẩu mới (6+ ký tự)"/><Btn onClick={()=>{if(np.length<6){alert("Mật khẩu tối thiểu 6 ký tự!");return}setAdminPw(hash(np));log("Đổi MK chuyển lớp","");setSv(true)}}>{sv?"✅ Đã lưu":"💾 Lưu"}</Btn></div>
       <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",padding:"24px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}><h3 style={{color:V.text,margin:0,fontSize:"15px",fontWeight:700}}>👥 Tài khoản hệ thống</h3><a href={`https://supabase.com/dashboard/project/${PROJECT_REF}/auth/users`} target="_blank" rel="noreferrer" style={{fontSize:"12px",color:V.accent,fontWeight:600}}>+ Tạo / xoá / reset MK trên Supabase ↗</a></div>
         <p style={{color:V.textDim,fontSize:"12px",marginBottom:"14px"}}>Tạo tài khoản mới trong Supabase (Authentication → Users → Add user, tick "Auto Confirm"). Tài khoản mới mặc định vai trò <b>Sales</b> — đổi vai trò và tên hiển thị tại đây.</p>
