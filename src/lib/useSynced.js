@@ -31,15 +31,7 @@ export function useSynced(table, fallback, opts = {}) {
       const { data, error } = await sb.from(table).select("*");
       if (!alive) return;
       if (error) { setError(`${table}: ${error.message}`); return }
-      let init = data.map(r => fromRow(r, inv));
-      if (init.length === 0) {
-        const local = load(localKey, null);
-        const seed = Array.isArray(local) && local.length ? local : fallback;
-        if (seed.length) {
-          const { error: e2 } = await sb.from(table).insert(seed.map(o => toRow(o, ren)));
-          if (e2) setError(`${table}: ${e2.message}`); else init = seed;
-        }
-      }
+      const init = data.map(r => fromRow(r, inv)); // bảng trống thì để trống — KHÔNG tự nạp dữ liệu mẫu
       prev.current = init; setRows(init); setReady(true);
     })();
     return () => { alive = false };
@@ -52,13 +44,31 @@ export function useSynced(table, fallback, opts = {}) {
     const old = prev.current; prev.current = rows;
     const oldMap = new Map(old.map(r => [r.id, r]));
     const newIds = new Set(rows.map(r => r.id));
-    const up = rows.filter(r => { const o = oldMap.get(r.id); return !o || stable(o) !== stable(r) });
+    const ins = rows.filter(r => !oldMap.has(r.id));
+    const upd = rows.filter(r => { const o = oldMap.get(r.id); return o && stable(o) !== stable(r) });
     const del = old.filter(r => !newIds.has(r.id)).map(r => r.id);
     (async () => {
-      if (up.length) { const { error } = await sb.from(table).upsert(up.map(o => toRow(o, ren))); if (error) setError(`${table}: ${error.message}`) }
+      if (ins.length) { const { error } = await sb.from(table).insert(ins.map(o => toRow(o, ren))); if (error) setError(`${table}: ${error.message}`) }
+      for (const r of upd) { const { error } = await sb.from(table).update(toRow(r, ren)).eq("id", r.id); if (error) { setError(`${table}: ${error.message}`); break } }
       if (del.length) { const { error } = await sb.from(table).delete().in("id", del); if (error) setError(`${table}: ${error.message}`) }
     })();
   }, [rows, ready]);
+
+  // Tải lại từ server khi quay lại tab (tránh tab bỏ quên giữ dữ liệu cũ)
+  useEffect(() => {
+    if (!hasSupabase || !ready) return;
+    let last = Date.now();
+    const onVis = async () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 5000) return;
+      last = Date.now();
+      const { data, error } = await sb.from(table).select("*");
+      if (error || !data) return;
+      const fresh = data.map(r => fromRow(r, inv));
+      prev.current = fresh; setRows(fresh);
+    };
+    document.addEventListener("visibilitychange", onVis); window.addEventListener("focus", onVis);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onVis) };
+  }, [ready]);
 
   // Realtime từ máy khác
   useEffect(() => {
