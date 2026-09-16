@@ -474,7 +474,7 @@ const Center=({children})=>(<div style={{minHeight:"100vh",display:"flex",alignI
 
 function Login({onDone}){
   const[u,setU]=useState("");const[p,setP]=useState("");const[e,setE]=useState("");const[busy,setBusy]=useState(false);
-  const doLogin=async()=>{if(!u||!p){setE("Nhập email và mật khẩu");return}setBusy(true);setE("");const{error}=await sb.auth.signInWithPassword({email:u.trim(),password:p});setBusy(false);if(error)setE(/invalid/i.test(error.message)?"Sai email hoặc mật khẩu":error.message);else onDone?.()};
+  const doLogin=async()=>{if(!u||!p){setE("Nhập email và mật khẩu");return}setBusy(true);setE("");const{error}=await sb.auth.signInWithPassword({email:u.trim(),password:p});setBusy(false);if(error)setE(/invalid login credentials/i.test(error.message)?"Sai email hoặc mật khẩu":/invalid api key|jwt/i.test(error.message)?"Cấu hình sai: VITE_SUPABASE_ANON_KEY không đúng ("+error.message+")":error.message);else onDone?.()};
   return(<Center><div style={{background:V.surface,borderRadius:"20px",padding:"40px",width:"100%",maxWidth:"400px",boxShadow:"0 20px 60px rgba(0,0,0,0.08)",border:`1px solid ${V.border}`}}>
     <div style={{textAlign:"center",marginBottom:"32px"}}><Logo w={140}/><div style={{color:V.textFaint,fontSize:"11px",letterSpacing:"3px",marginTop:"8px"}}>EDUCATION CRM</div></div>
     <Inp label="Email" type="email" value={u} onChange={ev=>{setU(ev.target.value);setE("")}} placeholder="ten@vforge.edu.vn" onKeyDown={ev=>ev.key==="Enter"&&doLogin()}/>
