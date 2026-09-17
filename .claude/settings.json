@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.db.local)",
+      "Read(./.env.db.supabase)",
+      "Edit(./.env.db.local)",
+      "Edit(./.env.db.supabase)",
+      "Bash(cat .env*)",
+      "Bash(grep * .env*)",
+      "Bash(source .env*)"
+    ]
+  }
+}
