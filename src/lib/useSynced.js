@@ -48,7 +48,7 @@ export function useSynced(table, fallback, opts = {}) {
     const upd = rows.filter(r => { const o = oldMap.get(r.id); return o && stable(o) !== stable(r) });
     const del = old.filter(r => !newIds.has(r.id)).map(r => r.id);
     (async () => {
-      if (ins.length) { const { error } = await sb.from(table).insert(ins.map(o => toRow(o, ren))); if (error) setError(`${table}: ${error.message}`) }
+      if (ins.length) { const { error } = await sb.from(table).upsert(ins.map(o => toRow(o, ren)), { onConflict: "id", ignoreDuplicates: true }); if (error) setError(`${table}: ${error.message}`) } // trùng id (tab khác đã ghi) thì bỏ qua, không ghi đè
       for (const r of upd) { const { error } = await sb.from(table).update(toRow(r, ren)).eq("id", r.id); if (error) { setError(`${table}: ${error.message}`); break } }
       if (del.length) { const { error } = await sb.from(table).delete().in("id", del); if (error) setError(`${table}: ${error.message}`) }
     })();
