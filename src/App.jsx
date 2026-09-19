@@ -27,13 +27,20 @@ const PROJECT_REF=(import.meta.env.VITE_SUPABASE_URL||"").replace(/^https?:\/\//
 
 const ROLE_CFG={admin:{label:"Admin",color:V.vred,tabs:["dashboard","sales","classes","students","report","settings"]},sales:{label:"Sales",color:V.accent,tabs:["dashboard","sales","classes","students"]},reception:{label:"Lễ tân",color:V.purple,tabs:["dashboard","classes","students"]}};
 
-const COURSE_LEVELS=[{id:"start",name:"Code Start",color:V.amber,icon:"🌱"},{id:"up",name:"Code Up",color:V.accent,icon:"🚀"},{id:"pro",name:"Code Pro",color:V.purple,icon:"⚡"},{id:"proplus",name:"Code Pro+",color:V.vred,icon:"🏆"}];
+const COURSE_LEVELS=[{id:"start",name:"Code Start",color:V.amber,icon:"🌱"},{id:"up",name:"Code Up",color:V.accent,icon:"🚀"},{id:"pro",name:"Code Pro",color:V.purple,icon:"⚡",customFee:true},{id:"proplus",name:"Code Pro+",color:V.vred,icon:"🏆",customFee:true},{id:"focus",name:"Code Focus",color:V.cyan,icon:"🎯"}];
 const COURSES=[
-  {id:"start_1",name:"Code Start 1",level:"start",duration:"3 tháng",fee:1800000},{id:"start_2",name:"Code Start 2",level:"start",duration:"3 tháng",fee:1800000},
-  {id:"up_1",name:"Code Up 1",level:"up",duration:"4 tháng",fee:2400000},{id:"up_2",name:"Code Up 2",level:"up",duration:"4 tháng",fee:2400000},{id:"up_3",name:"Code Up 3",level:"up",duration:"4 tháng",fee:2400000},{id:"up_4",name:"Code Up 4",level:"up",duration:"4 tháng",fee:2400000},
-  {id:"pro_1",name:"Code Pro 1",level:"pro",duration:"5 tháng",fee:3200000},{id:"pro_2",name:"Code Pro 2",level:"pro",duration:"5 tháng",fee:3200000},{id:"pro_3",name:"Code Pro 3",level:"pro",duration:"5 tháng",fee:3200000},
-  {id:"proplus_1",name:"Code Pro+ 1",level:"proplus",duration:"6 tháng",fee:3800000},{id:"proplus_2",name:"Code Pro+ 2",level:"proplus",duration:"6 tháng",fee:3800000},{id:"proplus_3",name:"Code Pro+ 3",level:"proplus",duration:"6 tháng",fee:3800000},
-];
+  {id:"start_1",name:"Code Start 1",level:"start",fee:7200000},{id:"start_2",name:"Code Start 2",level:"start",fee:7200000},
+  {id:"up_1",name:"Code Up 1",level:"up",fee:7200000},{id:"up_2",name:"Code Up 2",level:"up",fee:7200000},{id:"up_3",name:"Code Up 3",level:"up",fee:7200000},{id:"up_4",name:"Code Up 4",level:"up",fee:7200000},
+  {id:"pro_1",name:"Code Pro 1",level:"pro"},{id:"pro_2",name:"Code Pro 2",level:"pro"},{id:"pro_3",name:"Code Pro 3",level:"pro"},
+  {id:"proplus_1",name:"Code Pro+ 1",level:"proplus"},{id:"proplus_2",name:"Code Pro+ 2",level:"proplus"},{id:"proplus_3",name:"Code Pro+ 3",level:"proplus"},
+  {id:"focus_1",name:"Code Focus 1",level:"focus",fee:3600000},{id:"focus_2",name:"Code Focus 2",level:"focus",fee:3600000},
+].map(c=>({duration:"3 tháng",lessons:24,...c})); // mặc định 3 tháng, 24 buổi/khóa
+const COURSE_COUNTS=[1,2,3,4];
+const ONLINE_FEE=3600000,ONLINE_FEE_LEVELS=["start","up","focus"]; // học online: Code Start/Up/Focus đồng giá
+const hasClassFee=co=>!!COURSE_LEVELS.find(l=>l.id===co?.level)?.customFee; // Code Pro/Pro+: học phí theo từng lớp
+const courseFee=(co,format,cls)=>hasClassFee(co)?(Number(cls?.fee)||0):format==="online"&&ONLINE_FEE_LEVELS.includes(co?.level)?ONLINE_FEE:(co?.fee||0);
+const DISCOUNTS=[0,5,8,10,15]; // % giảm giá của lead
+const leadFee=(co,lead,cls)=>Math.round(courseFee(co,lead?.format,cls)*(100-(lead?.discount||0))/100);
 const gCC=(c)=>COURSE_LEVELS.find(l=>l.id===c?.level)?.color||V.accent;
 const getFillTag=(count,max)=>{const pct=max>0?(count/max)*100:0;if(pct>=80)return{tag:"green",color:V.mint,bg:V.mintDim,label:"🟢"};if(pct>=50)return{tag:"yellow",color:V.amber,bg:V.amberDim,label:"🟡"};return{tag:"red",color:V.red,bg:V.redDim,label:"🔴"}};
 const LOST_REASONS=["Học phí","Xa nhà","Lịch không phù hợp","Chưa sẵn sàng","Chọn nơi khác","Khác"];
@@ -76,8 +83,9 @@ function Crm({user,onLogout}){
   const[leadF,setLeadF]=useState("all");
   const[selL,setSelL]=useState(()=>new Set()); // lead đang chọn (xoá hàng loạt)
   const[adminPw,setAdminPw,syPw]=useSyncedValue("adminPw",hash("vforge2026"));
+  const[teachers,setTeachers,syTch]=useSyncedValue("teachers",INST);
   const[auditLog,setAuditLog,syAud]=useSynced("audit_log",[],{ren:{user:"user_name"},localKey:"audit"});
-  const syncs=[syProf,syLeads,syStu,syCls,syAtt,syPw,syAud];
+  const syncs=[syProf,syLeads,syStu,syCls,syAtt,syPw,syTch,syAud];
   const dataReady=syncs.every(x=>x.ready);
   const syncError=syncs.map(x=>x.error).find(Boolean);
 
@@ -121,7 +129,7 @@ function Crm({user,onLogout}){
       const b=bestCls(l.course);
       if(b){
         const co=COURSES.find(c=>c.id===l.course);
-        newStudents.push({id:Date.now()+Math.random(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:"Auto-sync"});
+        newStudents.push({id:Date.now()+Math.random(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:leadFee(co,l,b),totalFee:leadFee(co,l,b),note:"Auto-sync"});
         leadUpdates[l.id]=b.id;
       }
     });
@@ -137,7 +145,7 @@ function Crm({user,onLogout}){
 
 
   // ADD LEAD
-  const AddLead=()=>{const[f,setF]=useState({parentName:"",studentName:"",phone:"",email:"",course:COURSES[0].id,source:LEAD_SRC[0],format:"offline",notes:"",referrer:"",createdAt:tod()});
+  const AddLead=()=>{const[f,setF]=useState({parentName:"",studentName:"",phone:"",email:"",course:COURSES[0].id,source:LEAD_SRC[0],format:"offline",courseCount:1,discount:0,notes:"",referrer:"",createdAt:tod()});
   const[err,setErr]=useState("");const[dupWarn,setDupWarn]=useState(null);
   const checkDup=(ph)=>{if(!ph)return null;return leads.find(l=>l.phone===ph)};
   const doSave=()=>{
@@ -156,6 +164,8 @@ function Crm({user,onLogout}){
       <Inp label="Số điện thoại *" value={f.phone} onChange={e=>{setF({...f,phone:e.target.value});setErr("");setDupWarn(null)}} placeholder="09xxxxxxxx"/>
       <Inp label="Email" value={f.email} onChange={e=>setF({...f,email:e.target.value})} placeholder="email@gmail.com"/>
       <Sel label="Trình độ" value={f.course} onChange={e=>setF({...f,course:e.target.value})}>{COURSE_LEVELS.map(lv=><optgroup key={lv.id} label={`${lv.icon} ${lv.name}`}>{COURSES.filter(c=>c.level===lv.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</Sel>
+      <Sel label="Giảm giá" value={f.discount} onChange={e=>setF({...f,discount:Number(e.target.value)})}>{DISCOUNTS.map(d=><option key={d} value={d}>{d?`${d}%`:"Không"}</option>)}</Sel>
+      <Sel label="Số khóa" value={f.courseCount} onChange={e=>setF({...f,courseCount:Number(e.target.value)})}>{COURSE_COUNTS.map(n=><option key={n} value={n}>{n}</option>)}</Sel>
       <Sel label="Nguồn *" value={f.source} onChange={e=>setF({...f,source:e.target.value})}>{LEAD_SRC.map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Sel label="Hình thức học" value={f.format} onChange={e=>setF({...f,format:e.target.value})}>{LEARN_FORMAT.map(lf=><option key={lf.id} value={lf.id}>{lf.label}</option>)}</Sel>
       <Inp label="Ngày nhập lead" type="date" value={f.createdAt} onChange={e=>setF({...f,createdAt:e.target.value})}/>
@@ -168,7 +178,7 @@ function Crm({user,onLogout}){
   </Modal>)};
 
   // EDIT LEAD (Admin + Sales — chỉ sửa tên PH/HV + SĐT/email)
-  const EditLead=({lead})=>{const[ef,setEf]=useState({parentName:lead.parentName,studentName:lead.studentName,phone:lead.phone,email:lead.email||""});const[eerr,setEerr]=useState("");
+  const EditLead=({lead})=>{const[ef,setEf]=useState({parentName:lead.parentName,studentName:lead.studentName,phone:lead.phone,email:lead.email||"",courseCount:lead.courseCount||1,discount:lead.discount||0});const[eerr,setEerr]=useState("");
   const doSave=()=>{
     const pn=sanitize(ef.parentName),sn=sanitize(ef.studentName),ph=sanitize(ef.phone),em=sanitize(ef.email);
     if(!pn||!sn||!ph){setEerr("Vui lòng điền đầy đủ: Tên PH, Tên HV, SĐT");return}
@@ -176,7 +186,7 @@ function Crm({user,onLogout}){
     if(em&&!validEmail(em)){setEerr("Email không hợp lệ");return}
     const dup=leads.find(l=>l.phone===ph&&l.id!==lead.id);
     if(dup){setEerr(`SĐT đã tồn tại ở lead khác (${dup.parentName} - ${dup.studentName})`);return}
-    setLeads(p=>p.map(x=>x.id===lead.id?{...x,parentName:pn,studentName:sn,phone:ph,email:em}:x));
+    setLeads(p=>p.map(x=>x.id===lead.id?{...x,parentName:pn,studentName:sn,phone:ph,email:em,courseCount:ef.courseCount,discount:ef.discount}:x));
     log("Sửa lead",`${lead.studentName} → ${sn}`);
     setModal(null)};
   return(<Modal title={`✏️ Sửa thông tin — ${lead.studentName}`} onClose={()=>setModal(null)}>
@@ -184,6 +194,8 @@ function Crm({user,onLogout}){
     <Inp label="Họ tên học viên *" value={ef.studentName} onChange={e=>{setEf({...ef,studentName:e.target.value});setEerr("")}}/>
     <Inp label="Số điện thoại *" value={ef.phone} onChange={e=>{setEf({...ef,phone:e.target.value});setEerr("")}}/>
     <Inp label="Email" value={ef.email} onChange={e=>{setEf({...ef,email:e.target.value});setEerr("")}}/>
+    <Sel label="Giảm giá" value={ef.discount} onChange={e=>setEf({...ef,discount:Number(e.target.value)})}>{DISCOUNTS.map(d=><option key={d} value={d}>{d?`${d}%`:"Không"}</option>)}</Sel>
+    <Sel label="Số khóa" value={ef.courseCount} onChange={e=>setEf({...ef,courseCount:Number(e.target.value)})}>{COURSE_COUNTS.map(n=><option key={n} value={n}>{n}</option>)}</Sel>
     {eerr&&<div style={{background:V.redDim,border:`1px solid ${V.red}33`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.red,fontSize:"13px",fontWeight:600}}>⚠ {eerr}</div>}
     <Btn onClick={doSave} style={{width:"100%"}}>💾 Lưu thay đổi</Btn>
   </Modal>)};
@@ -194,19 +206,45 @@ function Crm({user,onLogout}){
   const chg=(id)=>{setSel(id);if(id===bc?.id){setWc(false);setPv(false)}else{setWc(true);setPv(false);setPw("")}};
   const ok=sel&&(sel===bc?.id||pv);
   return(<Modal title={`✅ Đăng ký — ${lead.studentName}`} onClose={()=>setModal(null)}>
-    <div style={{background:V.accentDim,borderRadius:"10px",padding:"14px 16px",marginBottom:"16px"}}><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{co?.name}</div><div style={{color:V.textDim,fontSize:"12px",marginTop:"4px"}}>Học phí: <span style={{color:V.accent,fontWeight:700}}>{fmt(co?.fee)}</span> · {co?.duration}</div></div>
+    <div style={{background:V.accentDim,borderRadius:"10px",padding:"14px 16px",marginBottom:"16px"}}><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{co?.name}</div><div style={{color:V.textDim,fontSize:"12px",marginTop:"4px"}}>Học phí: <span style={{color:V.accent,fontWeight:700}}>{hasClassFee(co)&&!sel?"Theo lớp":fmt(leadFee(co,lead,classes.find(c=>c.id===sel)))}</span> · {co?.duration} · {co?.lessons} buổi</div></div>
     {bc?<div style={{background:V.mintDim,borderRadius:"10px",padding:"12px 16px",marginBottom:"16px"}}><div style={{color:V.mint,fontSize:"12px",fontWeight:700}}>🎯 Tự động xếp lớp ít nhất:</div><div style={{color:V.text,fontSize:"14px",fontWeight:600}}>{bc.name} ({clsSC(bc.id)}/{bc.maxStudents})</div></div>:<div style={{background:V.amberDim,borderRadius:"10px",padding:"12px 16px",marginBottom:"16px",color:V.amber,fontSize:"13px"}}>⚠ Chưa có lớp phù hợp</div>}
     {ac.length>1&&<><Sel label="Chuyển lớp khác (cần mật khẩu)" value={sel} onChange={e=>chg(e.target.value)}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents}){c.id===bc?.id?" ⭐":""}</option>)}</Sel>
     {wc&&!pv&&<div style={{display:"flex",gap:"8px",marginBottom:"14px"}}><input type="password" value={pw} onChange={e=>{setPw(e.target.value);setPe("")}} placeholder="Mật khẩu admin" onKeyDown={e=>e.key==="Enter"&&vfy()} style={{flex:1,padding:"10px 14px",background:V.bg,border:`1px solid ${pe?V.red:V.border}`,borderRadius:"8px",color:V.text,fontSize:"14px",outline:"none",boxSizing:"border-box"}}/><Btn small onClick={vfy}><Ic.Lock/> OK</Btn></div>}
     {pe&&<div style={{color:V.red,fontSize:"12px",marginBottom:"10px"}}>{pe}</div>}
     {pv&&<div style={{color:V.mint,fontSize:"12px",marginBottom:"10px"}}>✅ Đã xác nhận</div>}</>}
-    <Btn onClick={()=>{if(!ok)return;setStudents(p=>[...p,{id:Date.now(),name:lead.studentName,parentName:lead.parentName,parentPhone:lead.phone,course:lead.course,classId:sel,enrollDate:tod(),paymentStatus:"pending",amountPaid:0,totalFee:co?.fee||0,note:""}]);setLeads(p=>p.map(l=>l.id===lead.id?{...l,status:"enrolled"}:l));setModal(null)}} style={{width:"100%",opacity:ok?1:0.5,cursor:ok?"pointer":"not-allowed"}}>✅ Xác nhận đăng ký</Btn>
+    <Btn onClick={()=>{if(!ok)return;setStudents(p=>[...p,{id:Date.now(),name:lead.studentName,parentName:lead.parentName,parentPhone:lead.phone,course:lead.course,classId:sel,enrollDate:tod(),paymentStatus:"pending",amountPaid:0,totalFee:leadFee(co,lead,classes.find(c=>c.id===sel)),note:""}]);setLeads(p=>p.map(l=>l.id===lead.id?{...l,status:"enrolled"}:l));setModal(null)}} style={{width:"100%",opacity:ok?1:0.5,cursor:ok?"pointer":"not-allowed"}}>✅ Xác nhận đăng ký</Btn>
   </Modal>);function vfy(){if(hash(pw)===adminPw){setPv(true);setPe("")}else setPe("Sai mật khẩu")}};
+
+  // TEACHER (Admin: thêm/sửa giảng viên)
+  const TeacherForm=({teacher})=>{const[f,setF]=useState({name:teacher?.name||"",role:teacher?.role||"",phone:teacher?.phone||"",courses:teacher?.courses||[]});const[err,setErr]=useState("");
+  const toggle=id=>setF(p=>({...p,courses:p.courses.includes(id)?p.courses.filter(x=>x!==id):[...p.courses,id]}));
+  const doSave=()=>{
+    const nm=sanitize(f.name),rl=sanitize(f.role),ph=sanitize(f.phone);
+    if(!nm){setErr("Vui lòng nhập tên giảng viên");return}
+    if(ph&&!validPhone(ph)){setErr("SĐT không hợp lệ (cần 10 số, bắt đầu bằng 0)");return}
+    if(teachers.some(t=>t.name===nm&&t.id!==teacher?.id)){setErr("Đã có giảng viên trùng tên");return}
+    const data={name:nm,role:rl,phone:ph,courses:f.courses};
+    if(teacher){
+      setTeachers(p=>p.map(t=>t.id===teacher.id?{...t,...data}:t));
+      if(nm!==teacher.name)setClasses(p=>p.map(c=>c.instructor===teacher.name?{...c,instructor:nm}:c));
+      log("Sửa giảng viên",nm)}
+    else{setTeachers(p=>[...p,{id:Date.now(),...data}]);log("Thêm giảng viên",nm)}
+    setModal(null)};
+  return(<Modal title={teacher?`✏️ Sửa giảng viên — ${teacher.name}`:"👨‍🏫 Thêm giảng viên"} onClose={()=>setModal(null)}>
+    <Inp label="Tên giảng viên *" value={f.name} onChange={e=>{setF({...f,name:e.target.value});setErr("")}}/>
+    <Inp label="Vai trò" value={f.role} onChange={e=>setF({...f,role:e.target.value})} placeholder="VD: Instructor"/>
+    <Inp label="Số điện thoại" value={f.phone} onChange={e=>{setF({...f,phone:e.target.value});setErr("")}} placeholder="09xxxxxxxx"/>
+    <div style={{marginBottom:"14px"}}><label style={{display:"block",color:V.textDim,fontSize:"11px",marginBottom:"8px",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px"}}>Khóa phụ trách</label>
+      {COURSE_LEVELS.map(lv=><div key={lv.id} style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"6px"}}>{COURSES.filter(c=>c.level===lv.id).map(c=>{const on=f.courses.includes(c.id);return<button key={c.id} type="button" onClick={()=>toggle(c.id)} style={{padding:"4px 10px",borderRadius:"6px",fontSize:"12px",fontWeight:700,cursor:"pointer",border:`1px solid ${lv.color}${on?"":"44"}`,background:on?`${lv.color}22`:"transparent",color:on?lv.color:V.textDim}}>{on?"✓ ":""}{c.name}</button>})}</div>)}
+    </div>
+    {err&&<div style={{background:V.redDim,border:`1px solid ${V.red}33`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",color:V.red,fontSize:"13px",fontWeight:600}}>⚠ {err}</div>}
+    <Btn onClick={doSave} style={{width:"100%"}}>💾 Lưu</Btn>
+  </Modal>)};
 
   // ADD CLASS
   const AddCls=({editClass})=>{const existingStudentCount=editClass?students.filter(s=>s.classId===editClass.id).length:0;
   const initSchedule=editClass?.schedule?.length?editClass.schedule.map(s=>{const[ts,te]=(s.time||"09:00-11:00").split("-");return{day:s.day,timeStart:ts,timeEnd:te}}):[{day:"T7",timeStart:"09:00",timeEnd:"11:00"}];
-  const initF=editClass?{level:COURSES.find(c=>c.id===editClass.course)?.level||COURSE_LEVELS[0].id,course:editClass.course,name:editClass.name,instructor:editClass.instructor,maxStudents:editClass.maxStudents,startDate:editClass.startDate,format:editClass.format||"offline"}:{level:COURSE_LEVELS[0].id,course:COURSES.find(c=>c.level===COURSE_LEVELS[0].id).id,name:"",instructor:INST[0].name,maxStudents:8,startDate:tod(),format:"offline"};
+  const initF=editClass?{level:COURSES.find(c=>c.id===editClass.course)?.level||COURSE_LEVELS[0].id,course:editClass.course,name:editClass.name,instructor:editClass.instructor,maxStudents:editClass.maxStudents,startDate:editClass.startDate,format:editClass.format||"offline",fee:editClass.fee||""}:{level:COURSE_LEVELS[0].id,course:COURSES.find(c=>c.level===COURSE_LEVELS[0].id).id,name:"",instructor:teachers[0]?.name||"",maxStudents:8,startDate:tod(),format:"offline",fee:""};
   const[f,setF]=useState(initF);const[sched,setSched]=useState(initSchedule);const[err,setErr]=useState("");
   const co=COURSES.find(c=>c.id===f.course);const lvl=COURSE_LEVELS.find(l=>l.id===f.level);
   const coursesInLevel=COURSES.filter(c=>c.level===f.level);
@@ -217,10 +255,12 @@ function Crm({user,onLogout}){
   const doSubmit=()=>{
     if(f.maxStudents<existingStudentCount){setErr(`Sĩ số tối đa không thể nhỏ hơn ${existingStudentCount} (số HV hiện có trong lớp)`);return}
     if(sched.length===0){setErr("Cần ít nhất 1 buổi học");return}
+    const fee=lvl?.customFee?Number(f.fee)||0:null;
+    if(lvl?.customFee&&fee<=0){setErr(`Nhập học phí / học viên cho lớp ${lvl.name}`);return}
     const nm=f.name||autoName();
     const scheduleData=sched.map(s=>({day:s.day,time:`${s.timeStart}-${s.timeEnd}`}));
-    if(editClass){setClasses(p=>p.map(c=>c.id===editClass.id?{...c,name:nm,course:f.course,instructor:f.instructor,schedule:scheduleData,maxStudents:f.maxStudents,startDate:f.startDate,format:f.format}:c));log("Sửa lớp",nm)}
-    else{const id=`CLS-${Date.now()}`;setClasses(p=>[...p,{id,name:nm,course:f.course,instructor:f.instructor,schedule:scheduleData,maxStudents:f.maxStudents,startDate:f.startDate,format:f.format,status:"upcoming"}]);log("Tạo lớp",nm)}
+    if(editClass){setClasses(p=>p.map(c=>c.id===editClass.id?{...c,name:nm,course:f.course,instructor:f.instructor,schedule:scheduleData,maxStudents:f.maxStudents,startDate:f.startDate,format:f.format,fee}:c));log("Sửa lớp",nm)}
+    else{const id=`CLS-${Date.now()}`;setClasses(p=>[...p,{id,name:nm,course:f.course,instructor:f.instructor,schedule:scheduleData,maxStudents:f.maxStudents,startDate:f.startDate,format:f.format,fee,status:"upcoming"}]);log("Tạo lớp",nm)}
     setModal(null)};
   return(<Modal title={editClass?`✏️ Sửa lớp — ${editClass.name}`:"📚 Tạo lớp học mới"} onClose={()=>setModal(null)} wide>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
@@ -228,9 +268,10 @@ function Crm({user,onLogout}){
       <Sel label="Khóa" value={f.course} onChange={e=>setF({...f,course:e.target.value,name:""})}>{coursesInLevel.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Sel>
       <Inp label="Sĩ số lớp tối đa" type="number" value={f.maxStudents} onChange={e=>{setF({...f,maxStudents:Number(e.target.value)});setErr("")}}/>
       <Inp label="Tên lớp" value={f.name||autoName()} onChange={e=>setF({...f,name:e.target.value})}/>
-      <Sel label="Giáo viên" value={f.instructor} onChange={e=>setF({...f,instructor:e.target.value})}>{INST.map(i=><option key={i.id} value={i.name}>{i.name} - {i.role}</option>)}</Sel>
+      <Sel label="Giáo viên" value={f.instructor} onChange={e=>setF({...f,instructor:e.target.value})}>{f.instructor&&!teachers.some(i=>i.name===f.instructor)&&<option value={f.instructor}>{f.instructor}</option>}{!f.instructor&&<option value="">-- Chọn giáo viên --</option>}{teachers.map(i=><option key={i.id} value={i.name}>{i.name} - {i.role}</option>)}</Sel>
       <Inp label="Ngày khai giảng" type="date" value={f.startDate} onChange={e=>setF({...f,startDate:e.target.value})}/>
       <Sel label="Hình thức học" value={f.format} onChange={e=>setF({...f,format:e.target.value})}>{LEARN_FORMAT.map(lf=><option key={lf.id} value={lf.id}>{lf.label}</option>)}</Sel>
+      {lvl?.customFee&&<Inp label="Học phí / học viên (VNĐ) *" type="number" min="0" step="100000" value={f.fee} onChange={e=>{setF({...f,fee:e.target.value});setErr("")}} placeholder="Theo sĩ số & yêu cầu lớp"/>}
     </div>
     <div style={{marginBottom:"16px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
@@ -314,15 +355,17 @@ function Crm({user,onLogout}){
       {selL.size>0&&<Btn small variant="danger" onClick={()=>{if(!confirm(`Xoá ${selL.size} lead đã chọn? Không thể hoàn tác.`))return;setLeads(p=>p.filter(l=>!selL.has(l.id)));log("Xoá hàng loạt lead",`${selL.size} lead`);setSelL(new Set())}}>🗑 Xoá {selL.size} đã chọn</Btn>}
     </>}<Btn onClick={()=>setModal("add_lead")}><Ic.Plus/> Thêm Lead</Btn></div></div>
     <div style={{display:"flex",gap:"8px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}><div style={{position:"relative",flex:1,minWidth:"200px"}}><div style={{position:"absolute",left:"12px",top:"50%",transform:"translateY(-50%)",color:V.textFaint}}><Ic.Search/></div><input placeholder="Tìm lead..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"9px 14px 9px 36px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"8px",color:V.text,fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div><div style={{display:"flex",gap:"4px",flexWrap:"wrap"}}><Btn small variant={leadF==="all"?"primary":"ghost"} onClick={()=>setLeadF("all")}>Tất cả ({leads.length})</Btn>{LEAD_ST.map(s=><Btn key={s.id} small variant={leadF===s.id?"primary":"ghost"} onClick={()=>setLeadF(s.id)}>{s.label} ({lbySt[s.id]?.length||0})</Btn>)}</div></div>
-    <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1420px"}}><thead><tr>{user.role==="admin"&&<TH></TH>}<TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Hình thức</TH><TH>Trình độ</TH><TH>Xếp lớp</TH><TH>Lý do chưa chốt</TH><TH>Ghi chú</TH><TH>Người GT</TH>{(user.role==="admin"||user.role==="sales")&&<TH></TH>}</tr></thead>
+    <div style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"14px",overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"1590px"}}><thead><tr>{user.role==="admin"&&<TH></TH>}<TH>Phụ huynh</TH><TH>Học viên</TH><TH>SĐT</TH><TH>Email</TH><TH>Trạng thái</TH><TH>Nguồn</TH><TH>Hình thức</TH><TH>Trình độ</TH><TH>Số khóa</TH><TH>Giảm giá</TH><TH>Xếp lớp</TH><TH>Lý do chưa chốt</TH><TH>Ghi chú</TH><TH>Người GT</TH>{(user.role==="admin"||user.role==="sales")&&<TH></TH>}</tr></thead>
     <tbody>{fl.map(l=>{const st=LEAD_ST.find(s=>s.id===l.status);const co=COURSES.find(c=>c.id===l.course);const isPaid=l.status==="paid"||l.status==="renew";const ac=classes.filter(c=>c.course===l.course&&["upcoming","active"].includes(c.status));const bc=bestCls(l.course);return<tr key={l.id} onMouseEnter={e=>e.currentTarget.style.background=V.surface2} onMouseLeave={e=>e.currentTarget.style.background="transparent"} style={{background:selL.has(l.id)?V.redDim:"transparent"}}>
       {user.role==="admin"&&<TD style={{width:"28px"}}><input type="checkbox" checked={selL.has(l.id)} onChange={()=>setSelL(p=>{const n=new Set(p);n.has(l.id)?n.delete(l.id):n.add(l.id);return n})} style={{cursor:"pointer",width:"16px",height:"16px"}}/></TD>}
       <TD style={{color:V.text,fontWeight:600}}>{l.parentName}</TD><TD style={{color:V.text,fontWeight:600}}>{l.studentName}</TD><TD>{l.phone}</TD><TD style={{fontSize:"12px"}}>{l.email||"—"}</TD>
-      <TD><select value={l.status} onChange={e=>{const ns=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,status:ns}:x));if(ns==="paid"){const b=bestCls(l.course);if(b&&!students.find(s=>s.name===l.studentName&&s.course===l.course)){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:"Auto-assign"}]);setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:b.id}:x))}}}} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></TD>
+      <TD><select value={l.status} onChange={e=>{const ns=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,status:ns}:x));if(ns==="paid"){const b=bestCls(l.course);if(b&&!students.find(s=>s.name===l.studentName&&s.course===l.course)){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:b.id,enrollDate:tod(),paymentStatus:"paid",amountPaid:leadFee(co,l,b),totalFee:leadFee(co,l,b),note:"Auto-assign"}]);setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:b.id}:x))}}}} style={{padding:"4px 8px",background:st?.bg,border:`1px solid ${st?.color}44`,borderRadius:"6px",color:st?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEAD_ST.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></TD>
       <TD><select value={l.source} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,source:e.target.value}:x))} style={{padding:"4px 8px",background:V.surface2,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.textMid,fontSize:"11px",fontWeight:600,outline:"none",cursor:"pointer"}}>{LEAD_SRC.map(s=><option key={s} value={s}>{s}</option>)}</select></TD>
       <TD><select value={l.format||"offline"} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,format:e.target.value}:x))} style={{padding:"4px 8px",background:`${LEARN_FORMAT.find(f=>f.id===(l.format||"offline"))?.color}18`,border:`1px solid ${LEARN_FORMAT.find(f=>f.id===(l.format||"offline"))?.color}44`,borderRadius:"6px",color:LEARN_FORMAT.find(f=>f.id===(l.format||"offline"))?.color,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{LEARN_FORMAT.map(lf=><option key={lf.id} value={lf.id}>{lf.label}</option>)}</select></TD>
       <TD><select value={l.course} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,course:e.target.value}:x))} style={{padding:"4px 8px",background:`${gCC(co)}18`,border:`1px solid ${gCC(co)}44`,borderRadius:"6px",color:gCC(co),fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{COURSE_LEVELS.map(lv=><optgroup key={lv.id} label={`${lv.icon} ${lv.name}`}>{COURSES.filter(c=>c.level===lv.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</select></TD>
-      <TD>{isPaid?(()=>{const stu=students.find(s=>s.name===l.studentName&&s.course===l.course);const assignedCls=classes.find(c=>c.id===(stu?.classId||l.assignedClass));if(user.role==="admin"){return ac.length>0?<select value={stu?.classId||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!stu){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:co?.fee||0,totalFee:co?.fee||0,note:""}])}else{setStudents(p=>p.map(s=>s.id===stu.id?{...s,classId:cid}:s))}log("Đổi lớp (Admin)",`${l.studentName} → ${classes.find(c=>c.id===cid)?.name}`)}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>}
+      <TD><select value={l.courseCount||1} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,courseCount:Number(e.target.value)}:x))} style={{padding:"4px 8px",background:V.surface2,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.textMid,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{COURSE_COUNTS.map(n=><option key={n} value={n}>{n}</option>)}</select></TD>
+      <TD><select value={l.discount||0} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,discount:Number(e.target.value)}:x))} style={{padding:"4px 8px",background:l.discount?V.amberDim:V.surface2,border:`1px solid ${l.discount?V.amber+"44":V.border}`,borderRadius:"6px",color:l.discount?V.amber:V.textMid,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{DISCOUNTS.map(d=><option key={d} value={d}>{d?`${d}%`:"Không"}</option>)}</select></TD>
+      <TD>{isPaid?(()=>{const stu=students.find(s=>s.name===l.studentName&&s.course===l.course);const assignedCls=classes.find(c=>c.id===(stu?.classId||l.assignedClass));if(user.role==="admin"){return ac.length>0?<select value={stu?.classId||bc?.id||""} onChange={e=>{const cid=e.target.value;setLeads(p=>p.map(x=>x.id===l.id?{...x,assignedClass:cid}:x));if(!stu){setStudents(p=>[...p,{id:Date.now(),name:l.studentName,parentName:l.parentName,parentPhone:l.phone,course:l.course,classId:cid,enrollDate:tod(),paymentStatus:"paid",amountPaid:leadFee(co,l,classes.find(c=>c.id===cid)),totalFee:leadFee(co,l,classes.find(c=>c.id===cid)),note:""}])}else{setStudents(p=>p.map(s=>s.id===stu.id?{...s,classId:cid}:s))}log("Đổi lớp (Admin)",`${l.studentName} → ${classes.find(c=>c.id===cid)?.name}`)}} style={{padding:"4px 8px",background:V.mintDim,border:`1px solid ${V.mint}44`,borderRadius:"6px",color:V.mint,fontSize:"11px",fontWeight:700,outline:"none",cursor:"pointer"}}>{ac.map(c=><option key={c.id} value={c.id}>{c.name} ({clsSC(c.id)}/{c.maxStudents})</option>)}</select>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>}
       return assignedCls?<Badge color={V.mint} bg={V.mintDim}>{assignedCls.name}</Badge>:(ac.length>0?<span style={{color:V.textFaint,fontSize:"11px"}}>Đang xử lý...</span>:<span style={{color:V.amber,fontSize:"11px",fontWeight:600}}>⚠ Chưa có lớp phù hợp</span>)})():<span style={{color:V.textGhost,fontSize:"11px"}}>Cần đóng HP</span>}</TD>
       <TD>{!isPaid&&l.status!=="renew"?<div style={{display:"flex",flexDirection:"column",gap:"4px"}}><select value={l.lostReason||""} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,lostReason:e.target.value}:x))} style={{padding:"4px 8px",background:V.surface2,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.textMid,fontSize:"11px",outline:"none",cursor:"pointer"}}><option value="">-- Chọn --</option>{LOST_REASONS.map(r=><option key={r} value={r}>{r}</option>)}</select>{l.lostReason==="Khác"&&<input value={l.lostNote||""} onChange={e=>setLeads(p=>p.map(x=>x.id===l.id?{...x,lostNote:e.target.value}:x))} placeholder="Ghi chú..." style={{padding:"4px 8px",background:V.bg,border:`1px solid ${V.border}`,borderRadius:"6px",color:V.text,fontSize:"11px",outline:"none",width:"100%",boxSizing:"border-box"}}/>}</div>:<span style={{color:V.textGhost,fontSize:"11px"}}>—</span>}</TD>
       <TD style={{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:"12px",color:V.textDim,cursor:l.notes?"help":"default"}} title={l.notes||""}>{l.notes||"—"}</TD>
@@ -345,14 +388,15 @@ function Crm({user,onLogout}){
         <div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Giảng viên</div><div style={{color:V.textMid,fontSize:"13px",fontWeight:600,marginTop:"2px"}}>{c.instructor}</div></div>
         <div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Sĩ số</div><div style={{color:ft.color,fontSize:"18px",fontWeight:800,fontFamily:"'Glory',sans-serif",marginTop:"2px"}}>{sc}<span style={{color:V.textFaint,fontSize:"13px",fontWeight:400}}>/{c.maxStudents}</span></div></div>
         <div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Khai giảng</div><div style={{color:V.textMid,fontSize:"13px",fontWeight:600,marginTop:"2px"}}>{fmtD(c.startDate)}</div></div>
+        {hasClassFee(co)&&<div><div style={{color:V.textGhost,fontSize:"10px",textTransform:"uppercase",fontWeight:700}}>Học phí / HV</div><div style={{color:c.fee?V.accent:V.amber,fontSize:"13px",fontWeight:700,marginTop:"2px"}}>{c.fee?fmt(c.fee):"⚠ Chưa nhập"}</div></div>}
       </div>
       <div style={{borderTop:`1px solid ${V.border}`,paddingTop:"10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{color:V.accent,fontSize:"12px",fontWeight:600}}>👁 Xem {sc} học viên</span>
         {user.role==="admin"&&<div style={{display:"flex",gap:"6px"}}><Btn small variant="secondary" onClick={e=>{e.stopPropagation();setModal({type:"edit_class",classData:c})}}>✏️ Sửa</Btn>{cst.length===0&&<Btn small variant="danger" onClick={e=>{e.stopPropagation();if(confirm(`Xóa lớp "${c.name}"?`)){setClasses(p=>p.filter(x=>x.id!==c.id));log("Xóa lớp",c.name)}}}><Ic.Trash/></Btn>}</div>}
       </div>
     </div></div>})}</div>
-    <h3 style={{color:V.accent,fontSize:"15px",fontWeight:700,marginBottom:"14px"}}>👨‍🏫 Giảng viên</h3>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:"12px"}}>{INST.map(i=><div key={i.id} style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"12px",padding:"16px 20px"}}><div style={{color:V.text,fontWeight:700,fontSize:"15px"}}>{i.name}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"2px"}}>{i.role}</div><div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"10px"}}>{i.courses.map(cId=>{const co=COURSES.find(c=>c.id===cId);return<Badge key={cId} color={gCC(co)}>{co?.name}</Badge>})}</div><div style={{marginTop:"10px",color:V.textDim,fontSize:"12px"}}>{classes.filter(c=>c.instructor===i.name).length} lớp · {i.phone}</div></div>)}</div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"14px",gap:"12px"}}><h3 style={{color:V.accent,fontSize:"15px",fontWeight:700,margin:0}}>👨‍🏫 Giảng viên</h3>{user.role==="admin"&&<Btn small onClick={()=>setModal("add_teacher")}><Ic.Plus/> Thêm giảng viên</Btn>}</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:"12px"}}>{teachers.map(i=><div key={i.id} style={{background:V.surface,border:`1px solid ${V.border}`,borderRadius:"12px",padding:"16px 20px"}}><div style={{color:V.text,fontWeight:700,fontSize:"15px"}}>{i.name}</div><div style={{color:V.textFaint,fontSize:"12px",marginTop:"2px"}}>{i.role}</div><div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"10px"}}>{i.courses.map(cId=>{const co=COURSES.find(c=>c.id===cId);return<Badge key={cId} color={gCC(co)}>{co?.name}</Badge>})}</div><div style={{marginTop:"10px",color:V.textDim,fontSize:"12px"}}>{classes.filter(c=>c.instructor===i.name).length} lớp · {i.phone||"—"}</div>{user.role==="admin"&&<div style={{display:"flex",gap:"6px",marginTop:"10px"}}><Btn small variant="secondary" onClick={()=>setModal({type:"edit_teacher",teacher:i})}>✏️ Sửa</Btn><Btn small variant="danger" onClick={()=>{const n=classes.filter(c=>c.instructor===i.name).length;if(!confirm(n?`Giảng viên "${i.name}" đang dạy ${n} lớp. Vẫn xóa? (Các lớp giữ nguyên tên GV cũ)`:`Xóa giảng viên "${i.name}"?`))return;setTeachers(p=>p.filter(x=>x.id!==i.id));log("Xóa giảng viên",i.name)}}><Ic.Trash/></Btn></div>}</div>)}</div>{!teachers.length&&<div style={{color:V.textFaint,fontSize:"13px"}}>Chưa có giảng viên</div>}
   </div>);
 
   // STUDENTS
@@ -465,7 +509,7 @@ function Crm({user,onLogout}){
       <div style={{display:"flex",gap:"8px",alignItems:"center"}}><div style={{textAlign:"right",marginRight:"8px"}}><div style={{color:V.text,fontSize:"13px",fontWeight:600}}>{user.name}</div><Badge color={ROLE_CFG[user.role]?.color}>{ROLE_CFG[user.role]?.label}</Badge></div>{can("sales")&&<Btn small onClick={()=>setModal("add_lead")}><Ic.Plus/> Lead</Btn>}<Btn small variant="ghost" onClick={()=>setModal("change_pw")} title="Đổi mật khẩu"><Ic.Lock/></Btn><Btn small variant="ghost" onClick={()=>{log("Đăng xuất","");onLogout()}}><Ic.Logout/></Btn></div>
     </div></div>
     <div style={{maxWidth:"1200px",margin:"0 auto",padding:"24px"}}>{can(tab)?pg[tab]:<div style={{textAlign:"center",padding:"60px",color:V.textFaint}}>Không có quyền truy cập</div>}</div>
-    {modal==="change_pw"&&<ChangePw onClose={()=>setModal(null)}/>}{modal==="add_lead"&&<AddLead/>}{modal?.type==="edit_lead"&&<EditLead lead={modal.lead}/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
+    {modal==="change_pw"&&<ChangePw onClose={()=>setModal(null)}/>}{modal==="add_lead"&&<AddLead/>}{modal?.type==="edit_lead"&&<EditLead lead={modal.lead}/>}{modal?.type==="enroll"&&<Enroll lead={modal.lead}/>}{modal==="attendance"&&<Attend/>}{modal==="add_class"&&<AddCls/>}{modal==="add_teacher"&&<TeacherForm/>}{modal?.type==="edit_teacher"&&<TeacherForm teacher={modal.teacher}/>}{modal?.type==="edit_class"&&<AddCls editClass={modal.classData}/>}{modal?.type==="view_class"&&<ViewClassStudents classId={modal.classId}/>}
   </div>);
 }
 
@@ -493,7 +537,7 @@ export default function VforgeApp(){
   useEffect(()=>{
     if(!hasSupabase)return;
     sb.auth.getSession().then(({data})=>setSession(data.session??null));
-    const{data:sub}=sb.auth.onAuthStateChange((_e,s)=>setSession(s??null));
+    const{data:sub}=sb.auth.onAuthStateChange((_e,s)=>setSession(p=>p&&s&&p.user.id===s.user.id?p:(s??null))); // cùng user (refresh token / đổi tab) thì giữ nguyên, tránh render lại + ghi "Đăng nhập" lặp
     return()=>sub.subscription.unsubscribe();
   },[]);
 

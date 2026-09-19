@@ -6,7 +6,9 @@ create table if not exists leads (
   parent_name text, student_name text, phone text, email text,
   course text, source text, format text, status text,
   notes text, referrer text, created_at text,
-  assigned_class text, lost_reason text, lost_note text
+  assigned_class text, lost_reason text, lost_note text,
+  course_count integer default 1 check (course_count between 1 and 4),
+  discount integer default 0 check (discount in (0,5,8,10,15))
 );
 
 create table if not exists students (
@@ -19,7 +21,8 @@ create table if not exists students (
 create table if not exists classes (
   id text primary key,
   name text, course text, instructor text, schedule jsonb,
-  max_students integer, start_date text, status text, format text
+  max_students integer, start_date text, status text, format text,
+  fee double precision
 );
 
 create table if not exists attendance (

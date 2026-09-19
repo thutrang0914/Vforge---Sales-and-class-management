@@ -64,6 +64,9 @@ export function useSynced(table, fallback, opts = {}) {
       const { data, error } = await sb.from(table).select("*");
       if (error || !data) return;
       const fresh = data.map(r => fromRow(r, inv));
+      // không đổi gì thì bỏ qua — tránh render lại làm mất form đang nhập
+      const cur = new Map((prev.current || []).map(r => [r.id, stable(r)]));
+      if (cur.size === fresh.length && fresh.every(r => cur.get(r.id) === stable(r))) return;
       prev.current = fresh; setRows(fresh);
     };
     document.addEventListener("visibilitychange", onVis); window.addEventListener("focus", onVis);
@@ -98,6 +101,8 @@ export function useSyncedValue(key, fallback) {
   const [ready, setReady] = useState(!hasSupabase);
   const [error, setError] = useState(null);
   const synced = useRef(null); // giá trị (JSON) đã có trên server
+  // cột settings.value trên Supabase là text: giá trị không phải chuỗi (mảng/đối tượng) về dạng JSON string
+  const parse = v => { if (typeof v === "string" && typeof fallback !== "string") { try { return JSON.parse(v) } catch {} } return v };
 
   useEffect(() => {
     if (!hasSupabase) return;
@@ -107,7 +112,7 @@ export function useSyncedValue(key, fallback) {
       if (!alive) return;
       if (error) { setError(`settings: ${error.message}`); return }
       let v = fallback;
-      if (data) v = data.value;
+      if (data) v = parse(data.value);
       else { v = load(key, fallback); await sb.from("settings").upsert({ key, value: v }) } // lỗi (nếu không phải admin) bỏ qua, dùng fallback
       synced.current = JSON.stringify(v); setVal(v); setReady(true);
     })();
@@ -128,8 +133,8 @@ export function useSyncedValue(key, fallback) {
     const channel = sb.channel("rt:settings:" + key)
       .on("postgres_changes", { event: "*", schema: "public", table: "settings", filter: `key=eq.${key}` }, payload => {
         if (!payload.new) return;
-        const j = JSON.stringify(payload.new.value);
-        if (j !== synced.current) { synced.current = j; setVal(payload.new.value) }
+        const v = parse(payload.new.value), j = JSON.stringify(v);
+        if (j !== synced.current) { synced.current = j; setVal(v) }
       }).subscribe();
     return () => { sb.removeChannel(channel) };
   }, [ready]);
